@@ -18,6 +18,7 @@ import {
   Schedule,
   AccessTime,
   CalendarToday,
+  Home,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -66,6 +67,15 @@ const Navbar: React.FC = () => {
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Smart Study Scheduler
         </Typography>
+        
+        <Button
+          color="inherit"
+          startIcon={<Home />}
+          onClick={() => navigate('/')}
+          sx={{ mr: 2 }}
+        >
+          Home
+        </Button>
         
         {user && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
