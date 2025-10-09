@@ -305,7 +305,7 @@ const LandingPage: React.FC = () => {
         }}
       >
         <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-          © 2024 Smart Study Scheduler. Built with ❤️ for students everywhere.
+          © 2025 Smart Study Scheduler. Built with ❤️ for students everywhere.
         </Typography>
       </Box>
     </Box>

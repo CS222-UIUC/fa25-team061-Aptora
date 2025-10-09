@@ -21,9 +21,7 @@ import {
   Schedule as ScheduleIcon,
   PlayArrow,
   CheckCircle,
-  Edit,
   Delete,
-  CalendarToday,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -54,11 +52,6 @@ interface StudySession {
   course_name?: string;
 }
 
-interface ScheduleResponse {
-  study_sessions: StudySession[];
-  total_hours_scheduled: number;
-  assignments_covered: number[];
-}
 
 const Schedule: React.FC = () => {
   const [open, setOpen] = useState(false);

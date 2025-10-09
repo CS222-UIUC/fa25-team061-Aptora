@@ -24,7 +24,7 @@ import {
   Add,
   Edit,
   Delete,
-  Assignment,
+  Assignment as AssignmentIcon,
   CheckCircle,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
@@ -255,7 +255,7 @@ const Assignments: React.FC = () => {
             <Card sx={{ opacity: assignment.is_completed ? 0.7 : 1 }}>
               <CardContent>
                 <Box display="flex" alignItems="center" mb={2}>
-                  <Assignment color="primary" sx={{ mr: 1 }} />
+                  <AssignmentIcon color="primary" sx={{ mr: 1 }} />
                   <Typography variant="h6" component="div">
                     {assignment.title}
                   </Typography>
