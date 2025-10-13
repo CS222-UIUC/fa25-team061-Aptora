@@ -10,6 +10,7 @@ import Schedule from '../pages/Schedule';
 import CalendarView from '../pages/CalendarView';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import About from '../pages/About';
 
 const AppRouter: React.FC = () => {
   return (
@@ -26,6 +27,7 @@ const AppRouter: React.FC = () => {
           <Route path="/calendar" element={<CalendarView />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/about" element={<About />} />
         </Routes>
       </Box>
     </Box>
