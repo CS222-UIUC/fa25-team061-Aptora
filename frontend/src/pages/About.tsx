@@ -80,7 +80,7 @@ const About: React.FC = () => {
               textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)',
             }}
           >
-            We built Smart Study Scheduler because we know how overwhelming college life can get. 
+            We built Aptora because we know how overwhelming college life can get. 
             Between classes, deadlines, and exams, staying organized isn't easy—and traditional 
             planners don't always adapt to how you actually work.
           </Typography>

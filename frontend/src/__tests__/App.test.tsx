@@ -26,7 +26,7 @@ describe('App Component', () => {
   it('renders login page when user is not authenticated', () => {
     render(<App />);
     
-    expect(screen.getByText('Smart Study Scheduler')).toBeInTheDocument();
+    expect(screen.getByText('Aptora')).toBeInTheDocument();
     expect(screen.getByText('Login')).toBeInTheDocument();
   });
 
@@ -49,7 +49,7 @@ describe('App Component', () => {
     
     render(<App />);
     
-    expect(screen.getByText('Smart Study Scheduler')).toBeInTheDocument();
+    expect(screen.getByText('Aptora')).toBeInTheDocument();
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
   });
 

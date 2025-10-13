@@ -18,7 +18,6 @@ import {
 } from '@mui/material';
 import {
   School,
-  Schedule,
   TrendingUp,
   Notifications,
   CalendarToday,
@@ -75,7 +74,7 @@ const LandingPage: React.FC = () => {
       <AppBar position="static" sx={{ background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)' }}>
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700 }}>
-            Smart Study Scheduler
+            Aptora
           </Typography>
           {isMobile ? (
             <IconButton
@@ -116,7 +115,7 @@ const LandingPage: React.FC = () => {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              Smart Study Scheduler
+              Aptora
             </Typography>
             <Typography
               variant="h5"
@@ -203,7 +202,7 @@ const LandingPage: React.FC = () => {
                 textShadow: '0 2px 4px rgba(0,0,0,0.3)',
               }}
             >
-              Why Choose Smart Study Scheduler?
+              Why Choose Aptora?
             </Typography>
             <Grid container spacing={4}>
               {features.map((feature, index) => (
@@ -428,7 +427,7 @@ const LandingPage: React.FC = () => {
                 mx: 'auto',
               }}
             >
-              Join thousands of students who have improved their academic performance with our smart scheduling system. 
+              Join thousands of students who have improved their academic performance with Aptora's smart scheduling system. 
               Start by selecting your courses and let AI create your perfect study schedule.
             </Typography>
             <Button
@@ -468,7 +467,7 @@ const LandingPage: React.FC = () => {
         }}
       >
         <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-          © 2025 Smart Study Scheduler. Built with ❤️ for students everywhere.
+          © 2025 Aptora. Built with ❤️ for students everywhere.
         </Typography>
       </Box>
     </Box>

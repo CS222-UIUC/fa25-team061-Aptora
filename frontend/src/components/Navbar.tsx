@@ -65,7 +65,7 @@ const Navbar: React.FC = () => {
           <MenuIcon />
         </IconButton>
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          Smart Study Scheduler
+          Aptora
         </Typography>
         
         <Button
