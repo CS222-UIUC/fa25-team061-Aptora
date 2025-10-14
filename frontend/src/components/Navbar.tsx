@@ -19,6 +19,7 @@ import {
   AccessTime,
   CalendarToday,
   Home,
+  Settings,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,16 +45,26 @@ const Navbar: React.FC = () => {
   };
 
   const navigationItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <Dashboard /> },
-    { path: '/courses', label: 'Courses', icon: <School /> },
-    { path: '/assignments', label: 'Assignments', icon: <Assignment /> },
-    { path: '/schedule', label: 'Schedule', icon: <Schedule /> },
-    { path: '/calendar', label: 'Calendar', icon: <CalendarToday /> },
-    { path: '/availability', label: 'Availability', icon: <AccessTime /> },
+    { path: '/app/dashboard', label: 'Dashboard', icon: <Dashboard /> },
+    { path: '/app/courses', label: 'Courses', icon: <School /> },
+    { path: '/app/assignments', label: 'Assignments', icon: <Assignment /> },
+    { path: '/app/schedule', label: 'Schedule', icon: <Schedule /> },
+    { path: '/app/calendar', label: 'Calendar', icon: <CalendarToday /> },
+    { path: '/app/availability', label: 'Availability', icon: <AccessTime /> },
+    { path: '/app/admin', label: 'Admin', icon: <Settings /> },
   ];
 
+  const isAboutPage = location.pathname === '/app/about';
+
   return (
-    <AppBar position="static">
+    <AppBar 
+      position="static"
+      sx={{
+        backgroundColor: isAboutPage ? 'transparent' : 'primary.main',
+        background: isAboutPage ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'primary.main',
+        boxShadow: isAboutPage ? 'none' : 1,
+      }}
+    >
       <Toolbar>
         <IconButton
           size="large"
@@ -64,20 +75,35 @@ const Navbar: React.FC = () => {
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+        <Typography 
+          variant="h6" 
+          component="div" 
+          sx={{ 
+            flexGrow: 1,
+            cursor: 'pointer',
+            color: isAboutPage ? 'white' : 'inherit',
+            textShadow: isAboutPage ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none',
+            '&:hover': {
+              opacity: 0.8
+            }
+          }}
+          onClick={() => navigate('/')}
+        >
           Aptora
         </Typography>
         
-        <Button
-          color="inherit"
-          startIcon={<Home />}
-          onClick={() => navigate('/')}
-          sx={{ mr: 2 }}
-        >
-          Home
-        </Button>
+        {!isAboutPage && (
+          <Button
+            color="inherit"
+            startIcon={<Home />}
+            onClick={() => navigate('/')}
+            sx={{ mr: 2 }}
+          >
+            Home
+          </Button>
+        )}
         
-        {user && (
+        {user && !isAboutPage && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {navigationItems.map((item) => (
               <Button

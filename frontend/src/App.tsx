@@ -1,7 +1,8 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { QueryClient, QueryClientProvider } from 'react-query';
 import LandingPage from './pages/LandingPage';
 import AppRouter from './components/AppRouter';
 import { AuthProvider } from './contexts/AuthContext';
@@ -45,19 +46,38 @@ const theme = createTheme({
   },
 });
 
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 const App: React.FC = () => {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/app/*" element={<AppRouter />} />
-          </Routes>
-        </Router>
-      </AuthProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/app/*" element={<AppRouter />} />
+              <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
+              <Route path="/courses" element={<Navigate to="/app/courses" replace />} />
+              <Route path="/assignments" element={<Navigate to="/app/assignments" replace />} />
+              <Route path="/schedule" element={<Navigate to="/app/schedule" replace />} />
+              <Route path="/calendar" element={<Navigate to="/app/calendar" replace />} />
+              <Route path="/availability" element={<Navigate to="/app/availability" replace />} />
+              <Route path="/admin" element={<Navigate to="/app/admin" replace />} />
+            </Routes>
+          </Router>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 };
 

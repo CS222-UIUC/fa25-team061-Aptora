@@ -3,10 +3,7 @@ import {
   Box,
   Container,
   Typography,
-  Button,
 } from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
-import { Link } from 'react-router-dom';
 
 const About: React.FC = () => {
   return (
@@ -21,7 +18,7 @@ const About: React.FC = () => {
         padding: 4,
       }}
     >
-      <Container maxWidth="md">
+      <Container maxWidth="lg">
         <Box
           sx={{
             textAlign: 'center',
@@ -29,30 +26,13 @@ const About: React.FC = () => {
             backgroundColor: 'rgba(255, 255, 255, 0.1)',
             backdropFilter: 'blur(10px)',
             borderRadius: 4,
-            padding: 6,
+            padding: '12 6',
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
             border: '1px solid rgba(255, 255, 255, 0.2)',
+            maxWidth: '2500px',
+            mx: 'auto',
           }}
         >
-          {/* Back Button */}
-          <Box sx={{ textAlign: 'left', mb: 4 }}>
-            <Button
-              component={Link}
-              to="/"
-              startIcon={<ArrowBack />}
-              sx={{
-                color: 'white',
-                borderColor: 'white',
-                '&:hover': {
-                  borderColor: 'white',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                },
-              }}
-              variant="outlined"
-            >
-              Back to Home
-            </Button>
-          </Box>
 
           {/* About Title */}
           <Typography

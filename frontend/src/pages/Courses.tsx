@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -40,6 +40,7 @@ import toast from 'react-hot-toast';
 import CourseSearch from '../components/CourseSearch';
 import { useCourseCatalog } from '../hooks/useCourseCatalog';
 import { CourseCatalog } from '../services/courseCatalogService';
+import { useAuth } from '../contexts/AuthContext';
 
 const schema = yup.object({
   name: yup.string().required('Course name is required'),
@@ -63,16 +64,39 @@ const Courses: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedCatalogCourses, setSelectedCatalogCourses] = useState<CourseCatalog[]>([]);
+  const [selectedCourseDetail, setSelectedCourseDetail] = useState<CourseCatalog | null>(null);
+  const [courseDetailOpen, setCourseDetailOpen] = useState(false);
+
+  // Load selected courses from localStorage on component mount
+  useEffect(() => {
+    const savedCourses = localStorage.getItem('selectedCatalogCourses');
+    if (savedCourses) {
+      try {
+        setSelectedCatalogCourses(JSON.parse(savedCourses));
+      } catch (error) {
+        console.error('Error parsing saved courses:', error);
+      }
+    }
+  }, []);
+
+  // Save selected courses to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('selectedCatalogCourses', JSON.stringify(selectedCatalogCourses));
+  }, [selectedCatalogCourses]);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Course catalog hook
   const {
     subjects,
     courses: catalogCourses,
+    sections,
     loadingSubjects,
     loadingCourses,
+    loadingSections,
     error: catalogError,
     loadCourses,
+    loadSections,
     clearError: clearCatalogError,
   } = useCourseCatalog({ autoLoad: true });
 
@@ -90,11 +114,17 @@ const Courses: React.FC = () => {
     async () => {
       const response = await axios.get('/courses/');
       return response.data;
+    },
+    {
+      enabled: !!user, // Only fetch if user is authenticated
     }
   );
 
   const createMutation = useMutation(
     async (data: FormData) => {
+      if (!user) {
+        throw new Error('You must be logged in to create courses');
+      }
       const response = await axios.post('/courses/', data);
       return response.data;
     },
@@ -105,13 +135,16 @@ const Courses: React.FC = () => {
         handleClose();
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.detail || 'Failed to create course');
+        toast.error(error.response?.data?.detail || error.message || 'Failed to create course');
       },
     }
   );
 
   const updateMutation = useMutation(
     async ({ id, data }: { id: number; data: FormData }) => {
+      if (!user) {
+        throw new Error('You must be logged in to update courses');
+      }
       const response = await axios.put(`/courses/${id}`, data);
       return response.data;
     },
@@ -122,13 +155,16 @@ const Courses: React.FC = () => {
         handleClose();
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.detail || 'Failed to update course');
+        toast.error(error.response?.data?.detail || error.message || 'Failed to update course');
       },
     }
   );
 
   const deleteMutation = useMutation(
     async (id: number) => {
+      if (!user) {
+        throw new Error('You must be logged in to delete courses');
+      }
       await axios.delete(`/courses/${id}`);
     },
     {
@@ -137,7 +173,7 @@ const Courses: React.FC = () => {
         toast.success('Course deleted successfully!');
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.detail || 'Failed to delete course');
+        toast.error(error.response?.data?.detail || error.message || 'Failed to delete course');
       },
     }
   );
@@ -200,6 +236,18 @@ const Courses: React.FC = () => {
     toast.success(`Removed ${course.subject} ${course.number} from your courses.`);
   };
 
+  const handleCourseDetailOpen = async (course: CourseCatalog) => {
+    setSelectedCourseDetail(course);
+    setCourseDetailOpen(true);
+    // Load sections for this course
+    await loadSections(course.subject, course.number);
+  };
+
+  const handleCourseDetailClose = () => {
+    setCourseDetailOpen(false);
+    setSelectedCourseDetail(null);
+  };
+
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
@@ -222,6 +270,7 @@ const Courses: React.FC = () => {
           variant="contained"
           startIcon={<Add />}
           onClick={handleOpen}
+          disabled={!user}
         >
           Add Custom Course
         </Button>
@@ -238,7 +287,13 @@ const Courses: React.FC = () => {
       {/* Tab 0: My Courses */}
       {tabValue === 0 && (
         <Box>
-          <Grid container spacing={3}>
+          {!user ? (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              Please log in to view and manage your personal courses.
+            </Alert>
+          ) : (
+            <>
+              <Grid container spacing={3}>
             {/* User's custom courses */}
             {courses?.map((course) => (
               <Grid item xs={12} sm={6} md={4} key={course.id}>
@@ -321,12 +376,14 @@ const Courses: React.FC = () => {
             ))}
           </Grid>
 
-          {(!courses || courses.length === 0) && selectedCatalogCourses.length === 0 && (
-            <Box textAlign="center" py={4}>
-              <Typography variant="h6" color="textSecondary">
-                No courses yet. Browse the course catalog or add a custom course to get started!
-              </Typography>
-            </Box>
+              {(!courses || courses.length === 0) && selectedCatalogCourses.length === 0 && (
+                <Box textAlign="center" py={4}>
+                  <Typography variant="h6" color="textSecondary">
+                    No courses yet. Browse the course catalog or add a custom course to get started!
+                  </Typography>
+                </Box>
+              )}
+            </>
           )}
         </Box>
       )}
@@ -368,7 +425,17 @@ const Courses: React.FC = () => {
               <Grid container spacing={2}>
                 {catalogCourses.map((course) => (
                   <Grid item xs={12} sm={6} md={4} key={`${course.subject}-${course.number}`}>
-                    <Card>
+                    <Card 
+                      sx={{ 
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease-in-out',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: 3,
+                        }
+                      }}
+                      onClick={() => handleCourseDetailOpen(course)}
+                    >
                       <CardContent>
                         <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
                           <Typography variant="h6">
@@ -398,12 +465,18 @@ const Courses: React.FC = () => {
                             </Typography>
                           </Box>
                         )}
+                        <Typography variant="caption" color="primary" sx={{ mt: 1, display: 'block' }}>
+                          Click to view details and sections
+                        </Typography>
                       </CardContent>
                       <CardActions>
                         <Button
                           size="small"
                           startIcon={<Add />}
-                          onClick={() => handleCatalogCourseAdd(course)}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent card click
+                            handleCatalogCourseAdd(course);
+                          }}
                           disabled={selectedCatalogCourses.some(c => 
                             c.subject === course.subject && c.number === course.number
                           )}
@@ -442,6 +515,7 @@ const Courses: React.FC = () => {
       {tabValue === 2 && (
         <Box>
           <CourseSearch
+            onCourseSelect={handleCourseDetailOpen}
             onCourseAdd={handleCatalogCourseAdd}
             selectedCourses={selectedCatalogCourses}
             placeholder="Search for courses (e.g., CS 225, MATH 241, Data Structures)"
@@ -501,6 +575,147 @@ const Courses: React.FC = () => {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Course Detail Dialog */}
+      <Dialog 
+        open={courseDetailOpen} 
+        onClose={handleCourseDetailClose} 
+        maxWidth="md" 
+        fullWidth
+      >
+        {selectedCourseDetail && (
+          <>
+            <DialogTitle>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography variant="h5" component="div">
+                    {selectedCourseDetail.subject} {selectedCourseDetail.number}
+                  </Typography>
+                  <Typography variant="subtitle1" color="textSecondary">
+                    {selectedCourseDetail.title}
+                  </Typography>
+                </Box>
+                {selectedCourseDetail.credit_hours && (
+                  <Chip 
+                    label={`${selectedCourseDetail.credit_hours} credits`} 
+                    color="primary" 
+                    variant="outlined"
+                  />
+                )}
+              </Box>
+            </DialogTitle>
+            
+            <DialogContent>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Course Information
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="textSecondary">
+                      <strong>Subject:</strong> {selectedCourseDetail.subject}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="textSecondary">
+                      <strong>Course Number:</strong> {selectedCourseDetail.number}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="textSecondary">
+                      <strong>Semester:</strong> {selectedCourseDetail.semester}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="textSecondary">
+                      <strong>Year:</strong> {selectedCourseDetail.year}
+                    </Typography>
+                  </Grid>
+                  {selectedCourseDetail.credit_hours && (
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="textSecondary">
+                        <strong>Credit Hours:</strong> {selectedCourseDetail.credit_hours}
+                      </Typography>
+                    </Grid>
+                  )}
+                </Grid>
+              </Box>
+
+              {selectedCourseDetail.description && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Description
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    {selectedCourseDetail.description}
+                  </Typography>
+                </Box>
+              )}
+
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  Available Sections
+                  {loadingSections && <CircularProgress size={20} sx={{ ml: 2 }} />}
+                </Typography>
+                
+                {sections.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {sections.map((section) => (
+                      <Grid item xs={12} sm={6} md={4} key={section.id}>
+                        <Card variant="outlined">
+                          <CardContent>
+                            <Typography variant="subtitle1" gutterBottom>
+                              Section {section.crn}
+                            </Typography>
+                            {section.days && (
+                              <Typography variant="body2" color="textSecondary">
+                                <strong>Days:</strong> {section.days}
+                              </Typography>
+                            )}
+                            {section.times && (
+                              <Typography variant="body2" color="textSecondary">
+                                <strong>Time:</strong> {section.times}
+                              </Typography>
+                            )}
+                            {section.instructor && (
+                              <Typography variant="body2" color="textSecondary">
+                                <strong>Instructor:</strong> {section.instructor}
+                              </Typography>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography variant="body2" color="textSecondary">
+                    No sections available for this course.
+                  </Typography>
+                )}
+              </Box>
+            </DialogContent>
+            
+            <DialogActions>
+              <Button onClick={handleCourseDetailClose}>Close</Button>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => {
+                  handleCatalogCourseAdd(selectedCourseDetail);
+                  handleCourseDetailClose();
+                }}
+                disabled={selectedCatalogCourses.some(c => 
+                  c.subject === selectedCourseDetail.subject && c.number === selectedCourseDetail.number
+                )}
+              >
+                {selectedCatalogCourses.some(c => 
+                  c.subject === selectedCourseDetail.subject && c.number === selectedCourseDetail.number
+                ) ? 'Already Added' : 'Add to My Courses'}
+              </Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
     </Container>
   );

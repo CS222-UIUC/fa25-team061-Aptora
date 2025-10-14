@@ -1,6 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { Box } from '@mui/material';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import Dashboard from '../pages/Dashboard';
 import Courses from '../pages/Courses';
@@ -11,14 +10,18 @@ import CalendarView from '../pages/CalendarView';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import About from '../pages/About';
+import Admin from '../pages/Admin';
 
 const AppRouter: React.FC = () => {
+  const location = useLocation();
+  const isAboutPage = location.pathname === '/app/about';
+  
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <Box component="main" sx={{ flexGrow: 1, pt: 8 }}>
+      <div style={{ paddingTop: isAboutPage ? '0' : '80px' }}>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/app/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/assignments" element={<Assignments />} />
@@ -28,9 +31,10 @@ const AppRouter: React.FC = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/about" element={<About />} />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

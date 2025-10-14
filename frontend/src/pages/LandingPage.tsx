@@ -85,10 +85,16 @@ const LandingPage: React.FC = () => {
             </IconButton>
           ) : (
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button color="inherit" component={Link} to="/app">
+              <Button color="inherit" component={Link} to="/app/dashboard">
                 Dashboard
               </Button>
-              <Button color="inherit" component={Link} to="/app">
+              <Button 
+                color="inherit" 
+                onClick={() => {
+                  const featuresSection = document.getElementById('features-section');
+                  featuresSection?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
                 Features
               </Button>
               <Button color="inherit" component={Link} to="/app/about">
@@ -113,6 +119,17 @@ const LandingPage: React.FC = () => {
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
+                animation: 'glow 2s ease-in-out infinite alternate',
+                '@keyframes glow': {
+                  '0%': {
+                    textShadow: '0 0 5px rgba(255, 255, 255, 0.5), 0 0 10px rgba(255, 255, 255, 0.3), 0 0 15px rgba(255, 255, 255, 0.2)',
+                    filter: 'brightness(1)',
+                  },
+                  '100%': {
+                    textShadow: '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4), 0 0 40px rgba(255, 255, 255, 0.2)',
+                    filter: 'brightness(1.2)',
+                  },
+                },
               }}
             >
               Aptora
@@ -167,32 +184,13 @@ const LandingPage: React.FC = () => {
               >
                 Get Started
               </Button>
-              <Button
-                variant="outlined"
-                size="large"
-                sx={{
-                  px: 4,
-                  py: 1.5,
-                  borderRadius: 3,
-                  borderColor: 'white',
-                  color: 'white',
-                  '&:hover': {
-                    borderColor: 'white',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    transform: 'translateY(-2px)',
-                  },
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                Learn More
-              </Button>
             </Box>
           </Box>
         </Fade>
 
         {/* Features Section */}
         <Slide direction="up" in timeout={1500}>
-          <Box sx={{ mb: 8 }}>
+          <Box id="features-section" sx={{ mb: 8 }}>
             <Typography
               variant="h2"
               sx={{
@@ -218,8 +216,18 @@ const LandingPage: React.FC = () => {
                         transition: 'all 0.3s ease',
                         '&:hover': {
                           transform: 'translateY(-8px)',
-                          boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                          boxShadow: '0 20px 40px rgba(0,0,0,0.2), 0 0 20px rgba(255, 255, 255, 0.3), 0 0 40px rgba(255, 255, 255, 0.2)',
                           background: 'rgba(255, 255, 255, 0.15)',
+                          border: '1px solid rgba(255, 255, 255, 0.4)',
+                          animation: 'featureGlow 1.5s ease-in-out infinite alternate',
+                          '@keyframes featureGlow': {
+                            '0%': {
+                              boxShadow: '0 20px 40px rgba(0,0,0,0.2), 0 0 20px rgba(255, 255, 255, 0.3), 0 0 40px rgba(255, 255, 255, 0.2)',
+                            },
+                            '100%': {
+                              boxShadow: '0 20px 40px rgba(0,0,0,0.2), 0 0 30px rgba(255, 255, 255, 0.5), 0 0 60px rgba(255, 255, 255, 0.3), 0 0 80px rgba(255, 255, 255, 0.1)',
+                            },
+                          },
                         },
                       }}
                     >
