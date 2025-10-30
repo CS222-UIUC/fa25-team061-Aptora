@@ -1,4 +1,4 @@
-# Smart Study Scheduler
+# Aptora
 
 A web application that helps students create personalized study plans by balancing assignment deadlines, task difficulty, and their own productivity habits. It reduces stress and helps students work more efficiently to stay on top of their coursework by optimizing time management.
 
@@ -105,7 +105,7 @@ fa25-fa25-team061/
 5. Set up the database:
    ```bash
    # Create PostgreSQL database
-   createdb study_scheduler
+   createdb aptora
    
    # Run migrations
    alembic upgrade head
@@ -180,9 +180,49 @@ The application uses a sophisticated algorithm to generate study schedules:
 
 ## Contributing
 
+### Git branching strategy
+
+- Main branches:
+  - `main`: stable, production-ready. Only fast-forward merges from `develop` on release.
+  - `develop`: integration branch for completed features; always green (CI passes).
+- Short-lived branches:
+  - `feature/<name>`: new features and UI work. Branch off `develop`, open PR into `develop`.
+  - `fix/<name>`: bug fixes. Branch off `develop` (or `main` for hotfix), PR back accordingly.
+  - `chore/<name>`: tooling, docs, or non-functional changes.
+  - `hotfix/<name>`: urgent production fixes. Branch off `main`, PR into `main` and `develop`.
+- Workflow:
+  1) Create branch from `develop`.
+  2) Commit with conventional prefix (feat:, fix:, chore:, docs:, test:).
+  3) Open PR to `develop` with checklist and brief description.
+  4) Require 1 reviewer approval + passing CI.
+  5) Squash-merge; delete branch.
+
+Naming examples: `feature/auth-jwt`, `fix/assignments-delete`, `chore/ci-pytest`.
+
+### Team development setup
+
+Backend
+1. `cp backend/env.example backend/.env` and set `DATABASE_URL`, `SECRET_KEY`, `FRONTEND_URL`.
+2. Create venv and install: `pip install -r backend/requirements.txt`.
+3. Initialize DB (SQLite or Postgres). For local dev you may set `DATABASE_URL=sqlite:///./dev.db`.
+4. Run API: `python backend/run.py` → `http://localhost:8000`.
+5. Run tests: `pytest backend -q`.
+
+Frontend
+1. `cd frontend && npm install`.
+2. `npm start` → `http://localhost:3000`.
+3. Environment: use proxy or set `REACT_APP_API_URL` if needed.
+4. Tests: `npm test`.
+
+Notes on requested tech changes
+- The project already uses FastAPI + SQLAlchemy; introducing MongoDB now would duplicate models and slow velocity. If MongoDB is still desired, we can plan a separate `feature/mongo-dev` spike to add an optional dev-only store without disrupting current SQL flows.
+- The frontend is already set up and integrated; migrating to Vite can be scheduled later (`feature/vite-migration`) without blocking current delivery.
+
+### Pull requests
+
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 

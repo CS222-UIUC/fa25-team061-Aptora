@@ -2,13 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import engine, Base
-from .routers import auth, courses, assignments, availability, schedules
+from .routers import auth, courses, assignments, availability, schedules, course_catalog, admin, progress
+from .scheduler import scheduler
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Smart Study Scheduler API",
+    title="Aptora API",
     description="A web app that helps students create personalized study plans",
     version="1.0.0"
 )
@@ -28,11 +29,26 @@ app.include_router(courses.router)
 app.include_router(assignments.router)
 app.include_router(availability.router)
 app.include_router(schedules.router)
+app.include_router(course_catalog.router)
+app.include_router(admin.router)
+app.include_router(progress.router)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Start the background scheduler on application startup"""
+    scheduler.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Stop the background scheduler on application shutdown"""
+    scheduler.stop()
 
 
 @app.get("/")
 async def root():
-    return {"message": "Smart Study Scheduler API"}
+    return {"message": "Aptora API"}
 
 
 @app.get("/health")

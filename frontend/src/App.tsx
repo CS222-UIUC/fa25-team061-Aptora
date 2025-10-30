@@ -9,6 +9,7 @@ import RequireAuth from './components/RequireAuth';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { AuthProvider } from './contexts/AuthContext';
+import About from './pages/About';
 
 const theme = createTheme({
   palette: {
@@ -73,6 +74,9 @@ const App: React.FC = () => {
               <Route path="/app/register" element={<Register />} />
               <Route path="/login" element={<Navigate to="/app/login" replace />} />
               <Route path="/register" element={<Navigate to="/app/register" replace />} />
+              {/* Public About */}
+              <Route path="/app/about" element={<About />} />
+              <Route path="/about" element={<Navigate to="/app/about" replace />} />
 
               {/* Protected app routes */}
               <Route

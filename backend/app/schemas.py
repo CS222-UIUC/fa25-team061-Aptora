@@ -170,3 +170,67 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+
+# Course Catalog schemas
+class CourseSectionBase(BaseModel):
+    crn: str
+    days: Optional[str] = None
+    times: Optional[str] = None
+    instructor: Optional[str] = None
+
+
+class CourseSectionCreate(CourseSectionBase):
+    pass
+
+
+class CourseSection(CourseSectionBase):
+    id: int
+    course_catalog_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class CourseCatalogBase(BaseModel):
+    subject: str
+    number: str
+    title: str
+    credit_hours: Optional[float] = None
+    description: Optional[str] = None
+    semester: str
+    year: int
+
+
+class CourseCatalogCreate(CourseCatalogBase):
+    sections: Optional[List[CourseSectionCreate]] = []
+
+
+class CourseCatalogUpdate(BaseModel):
+    subject: Optional[str] = None
+    number: Optional[str] = None
+    title: Optional[str] = None
+    credit_hours: Optional[float] = None
+    description: Optional[str] = None
+    semester: Optional[str] = None
+    year: Optional[int] = None
+
+
+class CourseCatalog(CourseCatalogBase):
+    id: int
+    sections: List[CourseSection] = []
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class CourseCatalogSearch(BaseModel):
+    subject: Optional[str] = None
+    number: Optional[str] = None
+    title: Optional[str] = None
+    semester: Optional[str] = None
+    year: Optional[int] = None

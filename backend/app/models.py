@@ -102,3 +102,38 @@ class StudySession(Base):
     # Relationships
     user = relationship("User", back_populates="study_sessions")
     assignment = relationship("Assignment", back_populates="study_sessions")
+
+
+# UIUC Course Catalog Models
+class CourseSection(Base):
+    __tablename__ = "course_sections"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    crn = Column(String, nullable=False)
+    days = Column(String)
+    times = Column(String)
+    instructor = Column(String)
+    course_catalog_id = Column(Integer, ForeignKey("course_catalog.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    course_catalog = relationship("CourseCatalog", back_populates="sections")
+
+
+class CourseCatalog(Base):
+    __tablename__ = "course_catalog"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    subject = Column(String, nullable=False, index=True)
+    number = Column(String, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    credit_hours = Column(Float)
+    description = Column(Text)
+    semester = Column(String, nullable=False, index=True)
+    year = Column(Integer, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    sections = relationship("CourseSection", back_populates="course_catalog", cascade="all, delete-orphan")
