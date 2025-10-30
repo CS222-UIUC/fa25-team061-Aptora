@@ -84,7 +84,7 @@ const LandingPage: React.FC = () => {
               {mobileMenuOpen ? <Close /> : <Menu />}
             </IconButton>
           ) : (
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Button color="inherit" component={Link} to="/app/dashboard">
                 Dashboard
               </Button>
@@ -99,6 +99,14 @@ const LandingPage: React.FC = () => {
               </Button>
               <Button color="inherit" component={Link} to="/app/about">
                 About
+              </Button>
+              <Button
+                color="inherit"
+                component={Link}
+                to="/app/login"
+                sx={{ ml: 2, border: '1px solid rgba(255,255,255,0.6)', borderRadius: 2, px: 2 }}
+              >
+                Login
               </Button>
             </Box>
           )}

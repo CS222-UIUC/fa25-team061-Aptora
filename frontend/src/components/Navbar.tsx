@@ -40,7 +40,7 @@ const Navbar: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/app/login');
     handleClose();
   };
 
@@ -149,6 +149,17 @@ const Navbar: React.FC = () => {
               </MenuItem>
               <MenuItem onClick={handleLogout}>Logout</MenuItem>
             </Menu>
+          </Box>
+        )}
+
+        {!user && !isAboutPage && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Button color="inherit" onClick={() => navigate('/app/login')}>
+              Login
+            </Button>
+            <Button color="inherit" onClick={() => navigate('/app/register')}>
+              Register
+            </Button>
           </Box>
         )}
       </Toolbar>

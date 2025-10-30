@@ -5,6 +5,9 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import LandingPage from './pages/LandingPage';
 import AppRouter from './components/AppRouter';
+import RequireAuth from './components/RequireAuth';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import { AuthProvider } from './contexts/AuthContext';
 
 const theme = createTheme({
@@ -65,7 +68,21 @@ const App: React.FC = () => {
           <Router>
             <Routes>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/app/*" element={<AppRouter />} />
+              {/* Public auth routes */}
+              <Route path="/app/login" element={<Login />} />
+              <Route path="/app/register" element={<Register />} />
+              <Route path="/login" element={<Navigate to="/app/login" replace />} />
+              <Route path="/register" element={<Navigate to="/app/register" replace />} />
+
+              {/* Protected app routes */}
+              <Route
+                path="/app/*"
+                element={
+                  <RequireAuth>
+                    <AppRouter />
+                  </RequireAuth>
+                }
+              />
               <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
               <Route path="/courses" element={<Navigate to="/app/courses" replace />} />
               <Route path="/assignments" element={<Navigate to="/app/assignments" replace />} />
