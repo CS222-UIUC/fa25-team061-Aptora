@@ -42,12 +42,18 @@ const LandingCourseSearch: React.FC<LandingCourseSearchProps> = ({
     clearError,
   } = useCourseCatalog({ autoLoad: false });
 
-  // Debounced search
+  // Debounced search - clear immediately if empty, otherwise debounce
   React.useEffect(() => {
+    // If search is empty, clear immediately
+    if (!searchQuery.trim()) {
+      searchCourses(''); // This will clear courses in the hook
+      setSelectedCourse(null); // Also clear selected course
+      return;
+    }
+
+    // Otherwise, debounce the search
     const timeoutId = setTimeout(() => {
-      if (searchQuery.trim()) {
-        searchCourses(searchQuery);
-      }
+      searchCourses(searchQuery);
     }, 300);
 
     return () => clearTimeout(timeoutId);
@@ -105,7 +111,13 @@ const LandingCourseSearch: React.FC<LandingCourseSearchProps> = ({
         loading={loadingCourses}
         value={selectedCourse}
         onChange={(_, newValue) => newValue && handleCourseSelect(newValue)}
-        onInputChange={(_, newValue) => setSearchQuery(newValue)}
+        onInputChange={(_, newValue) => {
+          setSearchQuery(newValue);
+          // Clear selected course when user starts typing again
+          if (selectedCourse && newValue !== `${selectedCourse.subject} ${selectedCourse.number}`) {
+            setSelectedCourse(null);
+          }
+        }}
         getOptionLabel={(course) => `${course.subject} ${course.number}: ${course.title}`}
         renderOption={(props, course) => (
           <li {...props} style={{ backgroundColor: 'rgba(102, 126, 234, 0.9)' }}>
