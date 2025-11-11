@@ -9,8 +9,12 @@ module.exports = {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },
   testMatch: [
-    '<rootDir>/src/**/__tests__/**/*.(ts|tsx)',
+    '<rootDir>/src/**/__tests__/**/*.(test|spec).(ts|tsx)',
     '<rootDir>/src/**/*.(test|spec).(ts|tsx)',
+  ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/src/__tests__/setup.ts',
   ],
   collectCoverageFrom: [
     'src/**/*.(ts|tsx)',
