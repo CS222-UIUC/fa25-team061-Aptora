@@ -83,7 +83,7 @@ const App: React.FC = () => {
                 element={
                   <div style={{ minHeight: '100vh' }}>
                     <Navbar />
-                    <div style={{ paddingTop: '80px' }}>
+                    <div style={{ paddingTop: '16px' }}>
                       <Dashboard />
                     </div>
                   </div>
@@ -94,7 +94,7 @@ const App: React.FC = () => {
                 element={
                   <div style={{ minHeight: '100vh' }}>
                     <Navbar />
-                    <div style={{ paddingTop: '80px' }}>
+                    <div style={{ paddingTop: '16px' }}>
                       <Dashboard />
                     </div>
                   </div>
