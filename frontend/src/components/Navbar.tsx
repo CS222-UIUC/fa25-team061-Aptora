@@ -20,6 +20,7 @@ import {
   CalendarToday,
   Home,
   Settings,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -51,6 +52,7 @@ const Navbar: React.FC = () => {
     { path: '/app/schedule', label: 'Schedule', icon: <Schedule /> },
     { path: '/app/calendar', label: 'Calendar', icon: <CalendarToday /> },
     { path: '/app/availability', label: 'Availability', icon: <AccessTime /> },
+    { path: '/app/notifications', label: 'Notifications', icon: <NotificationsIcon /> },
     { path: '/app/admin', label: 'Admin', icon: <Settings /> },
   ];
 

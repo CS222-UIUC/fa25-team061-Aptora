@@ -31,6 +31,9 @@ class User(Base):
     verification_token_expires = Column(DateTime(timezone=True), nullable=True)
     reset_token = Column(String, nullable=True)
     reset_token_expires = Column(DateTime(timezone=True), nullable=True)
+    # Notification settings
+    reminders_enabled = Column(Boolean, default=True)
+    reminder_lead_minutes = Column(Integer, default=30)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
