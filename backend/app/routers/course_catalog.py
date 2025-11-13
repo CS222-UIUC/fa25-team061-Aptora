@@ -5,7 +5,7 @@ Provides endpoints for accessing UIUC course catalog data.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_
 from typing import List, Optional
 import logging
@@ -55,8 +55,8 @@ async def get_courses(
         if year:
             query = query.filter(CourseCatalog.year == year)
         
-        # Apply pagination
-        courses = query.offset(skip).limit(limit).all()
+        # Apply pagination and eagerly load sections
+        courses = query.options(joinedload(CourseCatalog.sections)).offset(skip).limit(limit).all()
         
         logger.info(f"Retrieved {len(courses)} courses with filters: subject={subject}, number={number}, title={title}, semester={semester}, year={year}")
         
@@ -110,16 +110,59 @@ async def search_courses(
                 subject_part = parts[0].upper()
                 number_part = parts[1]
                 
-                courses = db.query(CourseCatalog).filter(
+                # Prioritize exact subject match, then prefix match
+                # First try exact subject match
+                exact_courses = db.query(CourseCatalog).options(
+                    joinedload(CourseCatalog.sections)
+                ).filter(
                     and_(
-                        CourseCatalog.subject.ilike(f"%{subject_part}%"),
+                        CourseCatalog.subject == subject_part,
                         CourseCatalog.number.ilike(f"%{number_part}%")
                     )
                 ).limit(limit).all()
                 
-                # If no results, fall back to general search
+                if len(exact_courses) >= limit:
+                    courses = exact_courses
+                else:
+                    # Then try subject prefix match
+                    prefix_courses = db.query(CourseCatalog).options(
+                        joinedload(CourseCatalog.sections)
+                    ).filter(
+                        and_(
+                            CourseCatalog.subject.ilike(f"{subject_part}%"),
+                            CourseCatalog.number.ilike(f"%{number_part}%")
+                        )
+                    ).limit(limit).all()
+                    
+                    # Combine exact and prefix matches, avoiding duplicates
+                    seen_ids = {c.id for c in exact_courses}
+                    prefix_unique = [c for c in prefix_courses if c.id not in seen_ids]
+                    combined = exact_courses + prefix_unique
+                    
+                    if len(combined) >= limit:
+                        courses = combined[:limit]
+                    else:
+                        # Fall back to broader search
+                        broader_courses = db.query(CourseCatalog).options(
+                            joinedload(CourseCatalog.sections)
+                        ).filter(
+                            and_(
+                                CourseCatalog.subject.ilike(f"%{subject_part}%"),
+                                CourseCatalog.number.ilike(f"%{number_part}%")
+                            )
+                        ).limit(limit).all()
+                        
+                        # Combine with previous results, avoiding duplicates
+                        seen_ids.update(c.id for c in combined)
+                        broader_unique = [c for c in broader_courses if c.id not in seen_ids]
+                        courses = combined + broader_unique
+                        courses = courses[:limit]
+                
+                # If still no results, fall back to general search
                 if not courses:
-                    courses = db.query(CourseCatalog).filter(
+                    courses = db.query(CourseCatalog).options(
+                        joinedload(CourseCatalog.sections)
+                    ).filter(
                         or_(
                             CourseCatalog.subject.ilike(search_term),
                             CourseCatalog.number.ilike(search_term),
@@ -128,18 +171,56 @@ async def search_courses(
                     ).limit(limit).all()
             else:
                 # Multiple words, search in title
-                courses = db.query(CourseCatalog).filter(
+                courses = db.query(CourseCatalog).options(
+                    joinedload(CourseCatalog.sections)
+                ).filter(
                     CourseCatalog.title.ilike(search_term)
                 ).limit(limit).all()
         else:
-            # Single word search
-            courses = db.query(CourseCatalog).filter(
-                or_(
-                    CourseCatalog.subject.ilike(search_term),
-                    CourseCatalog.number.ilike(search_term),
-                    CourseCatalog.title.ilike(search_term)
-                )
+            # Single word search - prioritize subject code matches
+            query_upper = q.strip().upper()
+            
+            # First, try exact subject match
+            exact_subject_courses = db.query(CourseCatalog).options(
+                joinedload(CourseCatalog.sections)
+            ).filter(
+                CourseCatalog.subject == query_upper
             ).limit(limit).all()
+            
+            if len(exact_subject_courses) >= limit:
+                courses = exact_subject_courses
+            else:
+                # Then try subject prefix match (e.g., "CS" matches "CS", "CSE", etc.)
+                prefix_subject_courses = db.query(CourseCatalog).options(
+                    joinedload(CourseCatalog.sections)
+                ).filter(
+                    CourseCatalog.subject.ilike(f"{query_upper}%")
+                ).limit(limit).all()
+                
+                # Combine exact and prefix matches, avoiding duplicates
+                seen_ids = {c.id for c in exact_subject_courses}
+                prefix_unique = [c for c in prefix_subject_courses if c.id not in seen_ids]
+                combined = exact_subject_courses + prefix_unique
+                
+                if len(combined) >= limit:
+                    courses = combined[:limit]
+                else:
+                    # Fall back to general search (subject, number, or title contains query)
+                    general_courses = db.query(CourseCatalog).options(
+                        joinedload(CourseCatalog.sections)
+                    ).filter(
+                        or_(
+                            CourseCatalog.subject.ilike(search_term),
+                            CourseCatalog.number.ilike(search_term),
+                            CourseCatalog.title.ilike(search_term)
+                        )
+                    ).limit(limit).all()
+                    
+                    # Combine with previous results, avoiding duplicates
+                    seen_ids.update(c.id for c in combined)
+                    general_unique = [c for c in general_courses if c.id not in seen_ids]
+                    courses = combined + general_unique
+                    courses = courses[:limit]
         
         logger.info(f"Search for '{q}' returned {len(courses)} results")
         return courses
@@ -176,7 +257,7 @@ async def get_course_by_subject_number(
         if year:
             query = query.filter(CourseCatalog.year == year)
         
-        course = query.first()
+        course = query.options(joinedload(CourseCatalog.sections)).first()
         
         if not course:
             raise HTTPException(

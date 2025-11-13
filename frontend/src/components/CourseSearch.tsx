@@ -53,12 +53,17 @@ const CourseSearch: React.FC<CourseSearchProps> = ({
     clearError,
   } = useCourseCatalog({ autoLoad: false });
 
-  // Debounced search
+  // Debounced search - clear immediately if empty, otherwise debounce
   useEffect(() => {
+    // If search is empty, clear immediately
+    if (!searchQuery.trim()) {
+      searchCourses(''); // This will clear courses in the hook
+      return;
+    }
+
+    // Otherwise, debounce the search
     const timeoutId = setTimeout(() => {
-      if (searchQuery.trim()) {
-        searchCourses(searchQuery);
-      }
+      searchCourses(searchQuery);
     }, 300);
 
     return () => clearTimeout(timeoutId);

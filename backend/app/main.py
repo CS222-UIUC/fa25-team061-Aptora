@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import engine, Base
-from .routers import auth, courses, assignments, availability, schedules, course_catalog, admin, progress
+from .routers import courses, assignments, availability, schedules, course_catalog, admin, progress, notifications
+from .auth import auth_router
 from .scheduler import scheduler
 
 # Create database tables
@@ -24,7 +25,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(auth.router)
+app.include_router(auth_router)
 app.include_router(courses.router)
 app.include_router(assignments.router)
 app.include_router(availability.router)
@@ -32,6 +33,7 @@ app.include_router(schedules.router)
 app.include_router(course_catalog.router)
 app.include_router(admin.router)
 app.include_router(progress.router)
+app.include_router(notifications.router)
 
 
 @app.on_event("startup")

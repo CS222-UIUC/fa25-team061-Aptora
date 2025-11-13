@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .data_ingestion.discovery_ingestion import load_discovery_dataset, save_courses_to_db
 from .models import CourseCatalog
+from .services.reminder_service import ReminderService
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,15 @@ class AptoraScheduler:
                 CronTrigger(day=1, hour=3, minute=0),  # First day of month at 3 AM
                 id='monthly_cleanup',
                 name='Monthly Data Cleanup',
+                replace_existing=True
+            )
+
+            # Schedule study session reminders
+            self.scheduler.add_job(
+                self.dispatch_study_session_reminders,
+                IntervalTrigger(minutes=1),  # Run every minute to catch upcoming sessions
+                id='study_session_reminders',
+                name='Study Session Reminder Dispatcher',
                 replace_existing=True
             )
             
@@ -131,6 +141,24 @@ class AptoraScheduler:
             
         except Exception as e:
             logger.error(f"Error during data cleanup: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
+    async def dispatch_study_session_reminders(self):
+        """Send reminders for upcoming study sessions."""
+        db = next(get_db())
+        try:
+            service = ReminderService(db)
+            results = service.send_upcoming_session_reminders()
+            if results:
+                logger.info(
+                    "Sent %d study session reminder(s): %s",
+                    len(results),
+                    [item["study_session_id"] for item in results],
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"Error dispatching study session reminders: {e}")
             db.rollback()
         finally:
             db.close()
