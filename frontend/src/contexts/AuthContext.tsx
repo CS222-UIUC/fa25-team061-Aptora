@@ -51,8 +51,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await axios.get('/auth/me');
       setUser(response.data);
     } catch (error) {
+      // Token is invalid or expired, clear it and user state
       localStorage.removeItem('access_token');
       delete axios.defaults.headers.common['Authorization'];
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -60,14 +62,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      const formData = new FormData();
-      formData.append('username', email);
-      formData.append('password', password);
-
-      const response = await axios.post('/auth/jwt/login', formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+      const response = await axios.post('/auth/login', {
+        email,
+        password,
       });
 
       const { access_token } = response.data;
