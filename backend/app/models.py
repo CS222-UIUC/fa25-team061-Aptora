@@ -110,6 +110,18 @@ class StudySession(Base):
     # Relationships
     user = relationship("User", back_populates="study_sessions")
     assignment = relationship("Assignment", back_populates="study_sessions")
+    reminder_log = relationship("StudySessionReminder", back_populates="study_session", uselist=False, cascade="all, delete-orphan")
+
+
+class StudySessionReminder(Base):
+    __tablename__ = "study_session_reminders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    study_session_id = Column(Integer, ForeignKey("study_sessions.id"), unique=True, nullable=False)
+    sent_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    study_session = relationship("StudySession", back_populates="reminder_log")
 
 
 # UIUC Course Catalog Models

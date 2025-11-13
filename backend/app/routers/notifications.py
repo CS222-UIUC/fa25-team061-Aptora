@@ -4,7 +4,7 @@ Notifications Router
 API endpoints for managing notification settings.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
@@ -12,6 +12,7 @@ from typing import Optional
 from ..database import get_db
 from ..models import User
 from ..auth.dependencies import get_current_active_user
+from ..services.reminder_service import ReminderService
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -22,6 +23,11 @@ class NotificationSettings(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class NotificationTestResponse(BaseModel):
+    count: int
+    reminders: list[dict]
 
 
 @router.get("/settings", response_model=NotificationSettings)
@@ -85,5 +91,29 @@ async def update_notification_settings(
     return NotificationSettings(
         reminders_enabled=current_user.reminders_enabled,
         reminder_lead_minutes=current_user.reminder_lead_minutes
+    )
+
+
+@router.post("/test", response_model=NotificationTestResponse)
+async def trigger_test_reminder(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Manually trigger reminder logic for the current user.
+
+    Returns:
+        Count of reminders that would be (or were) sent and their details.
+    """
+    service = ReminderService(db)
+    reminders = service.send_upcoming_session_reminders(
+        within_minutes=120,
+        target_user_id=current_user.id,
+        dry_run=True,
+    )
+
+    return NotificationTestResponse(
+        count=len(reminders),
+        reminders=reminders,
     )
 
