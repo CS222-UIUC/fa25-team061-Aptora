@@ -1,359 +1,373 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Container,
-  Grid,
-  Paper,
-  Typography,
-  Box,
-  Card,
-  CardContent,
-  List,
-  ListItem,
-  ListItemText,
-  Chip,
-  Button,
-  Avatar,
-} from '@mui/material';
-import {
-  Assignment,
-  Schedule,
-  School,
+import React from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { 
+  CalendarToday, 
+  CheckCircle, 
+  Assignment, 
   TrendingUp,
-  Add,
-  AccessTime,
+  ArrowUpward,
+  ArrowDownward
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import { CourseCatalog } from '../services/courseCatalogService';
-
-interface DashboardStats {
-  total_courses: number;
-  total_assignments: number;
-  upcoming_assignments: number;
-  completed_sessions: number;
-}
-
-interface UpcomingAssignment {
-  id: number;
-  title: string;
-  due_date: string;
-  course_name: string;
-  difficulty: string;
-}
 
 const Dashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const [selectedCatalogCourses, setSelectedCatalogCourses] = useState<CourseCatalog[]>([]);
-
-  // Load selected courses from localStorage on component mount
-  useEffect(() => {
-    const savedCourses = localStorage.getItem('selectedCatalogCourses');
-    if (savedCourses) {
-      try {
-        setSelectedCatalogCourses(JSON.parse(savedCourses));
-      } catch (error) {
-        console.error('Error parsing saved courses:', error);
-      }
-    }
-  }, []);
-
-  // Listen for storage changes (when courses are updated in other tabs/components)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'selectedCatalogCourses' && e.newValue) {
-        try {
-          setSelectedCatalogCourses(JSON.parse(e.newValue));
-        } catch (error) {
-          console.error('Error parsing updated courses:', error);
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  // Mock data for now - we'll implement real backend endpoints later
-  const stats: DashboardStats = {
-    total_courses: selectedCatalogCourses.length,
-    total_assignments: 0,
-    upcoming_assignments: 0,
-    completed_sessions: 0,
+  // Mock data for statistics
+  const stats = {
+    upcomingSessions: 4,
+    completedSessions: 12,
+    tasksDue: 3,
+    productivityScore: 78,
   };
 
-  const upcomingAssignments: UpcomingAssignment[] = [];
-  const statsLoading = false;
-  const assignmentsLoading = false;
+  // Mock data for productivity over time (last 7 days)
+  const productivityData = [
+    { date: 'Mon', productivity: 65 },
+    { date: 'Tue', productivity: 72 },
+    { date: 'Wed', productivity: 68 },
+    { date: 'Thu', productivity: 80 },
+    { date: 'Fri', productivity: 75 },
+    { date: 'Sat', productivity: 70 },
+    { date: 'Sun', productivity: 78 },
+  ];
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return 'success';
-      case 'medium': return 'warning';
-      case 'hard': return 'error';
-      default: return 'default';
-    }
+  // Mock data for task completion breakdown
+  const taskCompletionData = [
+    { name: 'Completed', value: 12 },
+    { name: 'Pending', value: 6 },
+  ];
+
+  const COLORS = ['#6366f1', '#ec4899'];
+
+  const cardStyles: React.CSSProperties = {
+    background: 'white',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+    transition: 'all 0.3s ease',
+    cursor: 'pointer',
   };
 
-  // Remove loading check since we're using mock data
+  const statCardStyles: React.CSSProperties[] = [
+    {
+      ...cardStyles,
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      color: 'white',
+    },
+    {
+      ...cardStyles,
+      background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      color: 'white',
+    },
+    {
+      ...cardStyles,
+      background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      color: 'white',
+    },
+    {
+      ...cardStyles,
+      background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+      color: 'white',
+    },
+  ];
 
-  try {
-    return (
-    <Container maxWidth="lg">
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">
-          Dashboard
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Welcome back! Here's your study overview.
-        </Typography>
-      </Box>
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      background: '#f5f7fa',
+      padding: '16px 24px'
+    }}>
+      <div style={{ 
+        maxWidth: '1280px', 
+        margin: '0 auto',
+        padding: '0'
+      }}>
+        {/* Page Header */}
+        <div style={{ marginBottom: '24px' }}>
+          <h1 style={{ 
+            fontSize: '32px', 
+            fontWeight: 700, 
+            color: '#1a202c',
+            marginBottom: '8px',
+            margin: '0 0 8px 0'
+          }}>
+            Dashboard
+          </h1>
+          <p style={{ 
+            color: '#718096', 
+            fontSize: '14px',
+            margin: 0
+          }}>
+            Your study insights and progress overview
+          </p>
+        </div>
 
-      <Grid container spacing={3}>
-        {/* Stats Cards */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <School color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    My Courses
-                  </Typography>
-                  <Typography variant="h4">
-                    {selectedCatalogCourses.length}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+        {/* Statistics Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '24px',
+          marginBottom: '32px'
+        }}>
+          {/* Upcoming Sessions Card */}
+          <div 
+            style={statCardStyles[0]}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <CalendarToday style={{ fontSize: '32px', opacity: 0.9 }} />
+              <ArrowUpward style={{ fontSize: '20px', opacity: 0.8 }} />
+            </div>
+            <h3 style={{ 
+              fontSize: '14px', 
+              fontWeight: 500, 
+              opacity: 0.9,
+              margin: '0 0 8px 0'
+            }}>
+              Upcoming Sessions
+            </h3>
+            <p style={{ 
+              fontSize: '36px', 
+              fontWeight: 700,
+              margin: 0
+            }}>
+              {stats.upcomingSessions}
+            </p>
+          </div>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Assignment color="secondary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    Total Assignments
-                  </Typography>
-                  <Typography variant="h4">
-                    {stats?.total_assignments || 0}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+          {/* Completed Sessions Card */}
+          <div 
+            style={statCardStyles[1]}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <CheckCircle style={{ fontSize: '32px', opacity: 0.9 }} />
+              <TrendingUp style={{ fontSize: '20px', opacity: 0.8 }} />
+            </div>
+            <h3 style={{ 
+              fontSize: '14px', 
+              fontWeight: 500, 
+              opacity: 0.9,
+              margin: '0 0 8px 0'
+            }}>
+              Completed Sessions
+            </h3>
+            <p style={{ 
+              fontSize: '36px', 
+              fontWeight: 700,
+              margin: 0
+            }}>
+              {stats.completedSessions}
+            </p>
+          </div>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Schedule color="warning" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    Upcoming
-                  </Typography>
-                  <Typography variant="h4">
-                    {stats?.upcoming_assignments || 0}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+          {/* Tasks Due This Week Card */}
+          <div 
+            style={statCardStyles[2]}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <Assignment style={{ fontSize: '32px', opacity: 0.9 }} />
+              <ArrowDownward style={{ fontSize: '20px', opacity: 0.8 }} />
+            </div>
+            <h3 style={{ 
+              fontSize: '14px', 
+              fontWeight: 500, 
+              opacity: 0.9,
+              margin: '0 0 8px 0'
+            }}>
+              Tasks Due This Week
+            </h3>
+            <p style={{ 
+              fontSize: '36px', 
+              fontWeight: 700,
+              margin: 0
+            }}>
+              {stats.tasksDue}
+            </p>
+          </div>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <TrendingUp color="success" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    Completed Sessions
-                  </Typography>
-                  <Typography variant="h4">
-                    {stats?.completed_sessions || 0}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+          {/* Productivity Score Card */}
+          <div 
+            style={statCardStyles[3]}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <TrendingUp style={{ fontSize: '32px', opacity: 0.9 }} />
+              <ArrowUpward style={{ fontSize: '20px', opacity: 0.8 }} />
+            </div>
+            <h3 style={{ 
+              fontSize: '14px', 
+              fontWeight: 500, 
+              opacity: 0.9,
+              margin: '0 0 8px 0'
+            }}>
+              Productivity Score
+            </h3>
+            <p style={{ 
+              fontSize: '36px', 
+              fontWeight: 700,
+              margin: 0
+            }}>
+              {stats.productivityScore}
+            </p>
+          </div>
+        </div>
 
-        {/* My Current Courses */}
-        <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 2 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="h6">My Current Courses</Typography>
-              <Button
-                variant="outlined"
-                startIcon={<Add />}
-                onClick={() => navigate('/courses')}
-              >
-                Add Courses
-              </Button>
-            </Box>
-            {selectedCatalogCourses.length > 0 ? (
-              <Grid container spacing={2}>
-                {selectedCatalogCourses.slice(0, 6).map((course: CourseCatalog) => (
-                  <Grid item xs={12} sm={6} md={4} key={`${course.subject}-${course.number}`}>
-                    <Card variant="outlined" sx={{ height: '100%' }}>
-                      <CardContent>
-                        <Box display="flex" alignItems="center" mb={1}>
-                          <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, mr: 1 }}>
-                            {course.subject.charAt(0)}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="subtitle1" fontWeight="bold">
-                              {course.subject} {course.number}
-                            </Typography>
-                            <Typography 
-                              variant="body2" 
-                              color="textSecondary"
-                              sx={{
-                                wordWrap: 'break-word',
-                                overflowWrap: 'break-word',
-                                hyphens: 'auto',
-                                lineHeight: 1.3,
-                                maxHeight: '2.6em', // Allow for 2 lines
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                              }}
-                            >
-                              {course.title}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Box display="flex" justifyContent="space-between" alignItems="center">
-                          <Chip
-                            label={course.semester}
-                            size="small"
-                            variant="outlined"
-                          />
-                          {course.credit_hours && (
-                            <Typography variant="caption" color="textSecondary">
-                              {course.credit_hours} credits
-                            </Typography>
-                          )}
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Box textAlign="center" py={4}>
-                <School sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-                <Typography variant="h6" color="textSecondary" gutterBottom>
-                  No courses selected yet
-                </Typography>
-                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                  Start by adding courses from the course catalog to get personalized study recommendations.
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<Add />}
-                  onClick={() => navigate('/courses')}
-                >
-                  Browse Course Catalog
-                </Button>
-              </Box>
-            )}
-          </Paper>
-        </Grid>
-
-        {/* Quick Actions */}
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Quick Actions
-            </Typography>
-            <Box display="flex" flexDirection="column" gap={1}>
-              <Button
-                variant="contained"
-                onClick={() => navigate('/courses')}
-                startIcon={<School />}
-              >
-                Browse Course Catalog
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/assignments')}
-                startIcon={<Assignment />}
-              >
-                Add Assignment
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/schedule')}
-                startIcon={<Schedule />}
-              >
-                Generate Schedule
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/availability')}
-                startIcon={<AccessTime />}
-              >
-                Set Availability
-              </Button>
-            </Box>
-          </Paper>
-        </Grid>
-
-        {/* Upcoming Assignments */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="h6">Upcoming Assignments</Typography>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/assignments')}
-              >
-                View All
-              </Button>
-            </Box>
-            <List>
-              {upcomingAssignments?.slice(0, 5).map((assignment) => (
-                <ListItem key={assignment.id} divider>
-                  <ListItemText
-                    primary={assignment.title}
-                    secondary={`${assignment.course_name} • Due: ${new Date(assignment.due_date).toLocaleDateString()}`}
+        {/* Charts Section */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+          gap: '24px',
+          marginBottom: '32px'
+        }}>
+          {/* Productivity Over Time */}
+          <div style={cardStyles}>
+            <h2 style={{ 
+              fontSize: '20px', 
+              fontWeight: 600, 
+              color: '#1a202c',
+              marginBottom: '24px',
+              margin: '0 0 24px 0'
+            }}>
+              Productivity Over Time
+            </h2>
+            <div style={{ width: '100%', height: '300px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={productivityData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#718096"
+                    style={{ fontSize: '12px' }}
                   />
-                  <Chip
-                    label={assignment.difficulty}
-                    color={getDifficultyColor(assignment.difficulty) as any}
-                    size="small"
+                  <YAxis 
+                    stroke="#718096"
+                    style={{ fontSize: '12px' }}
                   />
-                </ListItem>
-              ))}
-              {(!upcomingAssignments || upcomingAssignments.length === 0) && (
-                <ListItem>
-                  <ListItemText primary="No upcoming assignments" />
-                </ListItem>
-              )}
-            </List>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Container>
-    );
-  } catch (error) {
-    console.error('Dashboard render error:', error);
-    return (
-      <Container maxWidth="lg">
-        <Typography variant="h4" gutterBottom>
-          Dashboard
-        </Typography>
-        <Typography variant="body1" color="error">
-          Something went wrong loading the dashboard. Please try refreshing the page.
-        </Typography>
-      </Container>
-    );
-  }
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'white',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="productivity"
+                    stroke="#6366f1"
+                    strokeWidth={3}
+                    name="Productivity"
+                    dot={{ fill: '#6366f1', r: 5 }}
+                    activeDot={{ r: 7 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Task Completion Breakdown */}
+          <div style={cardStyles}>
+            <h2 style={{ 
+              fontSize: '20px', 
+              fontWeight: 600, 
+              color: '#1a202c',
+              marginBottom: '24px',
+              margin: '0 0 24px 0'
+            }}>
+              Task Completion Breakdown
+            </h2>
+            <div style={{ width: '100%', height: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={taskCompletionData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) =>
+                      `${name}: ${(percent * 100).toFixed(0)}%`
+                    }
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {taskCompletionData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'white',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* Weekly Overview */}
+        <div style={cardStyles}>
+          <h2 style={{ 
+            fontSize: '20px', 
+            fontWeight: 600, 
+            color: '#1a202c',
+            marginBottom: '16px',
+            margin: '0 0 16px 0'
+          }}>
+            Weekly Overview
+          </h2>
+          <p style={{ 
+            color: '#4a5568', 
+            lineHeight: '1.75',
+            fontSize: '16px',
+            margin: 0
+          }}>
+            This week has been productive with 12 completed study sessions and
+            4 upcoming sessions scheduled. Your productivity score of 78
+            indicates consistent performance. You have 3 tasks due this week,
+            with 6 tasks still pending. Keep up the great work and maintain your
+            study momentum!
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Dashboard;
