@@ -17,6 +17,12 @@ class TaskType(enum.Enum):
     PROJECT = "project"
 
 
+class PriorityLevel(enum.Enum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
 class User(Base):
     __tablename__ = "users"
     
@@ -63,6 +69,7 @@ class Assignment(Base):
     task_type = Column(Enum(TaskType), nullable=False)
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
     is_completed = Column(Boolean, default=False)
+    priority = Column(Enum(PriorityLevel), nullable=False, default=PriorityLevel.MEDIUM)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     

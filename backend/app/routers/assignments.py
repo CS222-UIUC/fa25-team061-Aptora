@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 from ..database import get_db
-from ..models import User, Assignment, Course
+from ..models import User, Assignment, Course, PriorityLevel
 from ..schemas import AssignmentCreate, AssignmentUpdate, Assignment as AssignmentSchema
 from ..auth import current_active_user
 
@@ -37,13 +38,28 @@ async def create_assignment(
 
 @router.get("/", response_model=List[AssignmentSchema])
 async def get_assignments(
+    course_id: Optional[int] = Query(default=None, description="Filter by course ID"),
+    priority: Optional[PriorityLevel] = Query(default=None, description="Filter by priority"),
+    due_before: Optional[datetime] = Query(default=None, description="Filter assignments due on or before this date"),
+    due_after: Optional[datetime] = Query(default=None, description="Filter assignments due on or after this date"),
     current_user: User = Depends(current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get all assignments for the current user."""
-    assignments = db.query(Assignment).join(Course).filter(
+    query = db.query(Assignment).join(Course).filter(
         Course.user_id == current_user.id
-    ).all()
+    )
+
+    if course_id is not None:
+        query = query.filter(Assignment.course_id == course_id)
+    if priority is not None:
+        query = query.filter(Assignment.priority == priority)
+    if due_before is not None:
+        query = query.filter(Assignment.due_date <= due_before)
+    if due_after is not None:
+        query = query.filter(Assignment.due_date >= due_after)
+
+    assignments = query.order_by(Assignment.due_date.asc()).all()
     return assignments
 
 
@@ -118,7 +134,7 @@ async def delete_assignment(
     return {"message": "Assignment deleted successfully"}
 
 
-@router.patch("/{assignment_id}/complete")
+@router.patch("/{assignment_id}/complete", response_model=AssignmentSchema)
 async def mark_assignment_complete(
     assignment_id: int,
     current_user: User = Depends(current_active_user),
@@ -138,4 +154,5 @@ async def mark_assignment_complete(
     
     assignment.is_completed = True
     db.commit()
-    return {"message": "Assignment marked as completed"}
+    db.refresh(assignment)
+    return assignment
