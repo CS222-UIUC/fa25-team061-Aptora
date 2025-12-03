@@ -12,7 +12,6 @@ import Dashboard from './pages/Dashboard';
 import About from './pages/About';
 import Navbar from './components/Navbar';
 import { AuthProvider } from './contexts/AuthContext';
-import About from './pages/About';
 
 const theme = createTheme({
   palette: {
