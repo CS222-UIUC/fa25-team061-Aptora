@@ -67,22 +67,6 @@ const Courses: React.FC = () => {
   const [selectedCourseDetail, setSelectedCourseDetail] = useState<CourseCatalog | null>(null);
   const [courseDetailOpen, setCourseDetailOpen] = useState(false);
 
-  // Load selected courses from localStorage on component mount
-  useEffect(() => {
-    const savedCourses = localStorage.getItem('selectedCatalogCourses');
-    if (savedCourses) {
-      try {
-        setSelectedCatalogCourses(JSON.parse(savedCourses));
-      } catch (error) {
-        console.error('Error parsing saved courses:', error);
-      }
-    }
-  }, []);
-
-  // Save selected courses to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('selectedCatalogCourses', JSON.stringify(selectedCatalogCourses));
-  }, [selectedCatalogCourses]);
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -117,8 +101,24 @@ const Courses: React.FC = () => {
     },
     {
       enabled: !!user, // Only fetch if user is authenticated
+      refetchOnMount: true, // Refetch when component mounts
+      refetchOnWindowFocus: true, // Refetch when window regains focus
+      staleTime: 0, // Always consider data stale to ensure fresh data
     }
   );
+
+  // Sync selectedCatalogCourses with backend courses on load
+  useEffect(() => {
+    if (courses && courses.length > 0) {
+      // Filter out courses that are already in backend
+      setSelectedCatalogCourses(prev => 
+        prev.filter(catalogCourse => {
+          const courseCode = `${catalogCourse.subject} ${catalogCourse.number}`;
+          return !courses.some(backendCourse => backendCourse.code === courseCode);
+        })
+      );
+    }
+  }, [courses]);
 
   const createMutation = useMutation(
     async (data: FormData) => {
@@ -222,18 +222,78 @@ const Courses: React.FC = () => {
     }
   };
 
-  const handleCatalogCourseAdd = (course: CourseCatalog) => {
-    if (!selectedCatalogCourses.some(c => c.subject === course.subject && c.number === course.number)) {
+  const handleCatalogCourseAdd = async (course: CourseCatalog) => {
+    if (!user) {
+      toast.error('Please log in to add courses');
+      return;
+    }
+
+    // Check if course already exists in backend
+    const courseCode = `${course.subject} ${course.number}`;
+    const existingCourse = courses?.find(c => c.code === courseCode);
+    
+    if (existingCourse) {
+      toast(`${courseCode} is already in your courses`);
+      return;
+    }
+
+    // Check if already in selected catalog courses
+    if (selectedCatalogCourses.some(c => c.subject === course.subject && c.number === course.number)) {
+      toast(`${courseCode} is already in your courses`);
+      return;
+    }
+
+    try {
+      // Save to backend database
+      const courseData: any = {
+        name: course.title || `${course.subject} ${course.number}`,
+        code: courseCode,
+      };
+      
+      // Only include description if it exists
+      if (course.description) {
+        courseData.description = course.description;
+      }
+      
+      await createMutation.mutateAsync(courseData);
+      
+      // Also add to selected catalog courses for UI consistency
       setSelectedCatalogCourses(prev => [...prev, course]);
-      toast.success(`Added ${course.subject} ${course.number} to your courses!`);
+      
+      toast.success(`Added ${courseCode} to your courses!`);
+    } catch (error: any) {
+      // Don't add to local state if creation fails - show error instead
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to save course to database';
+      console.error('Error creating course:', error);
+      toast.error(errorMessage);
+      throw error; // Re-throw to prevent further processing
     }
   };
 
-  const handleCatalogCourseRemove = (course: CourseCatalog) => {
-    setSelectedCatalogCourses(prev => 
-      prev.filter(c => !(c.subject === course.subject && c.number === course.number))
-    );
-    toast.success(`Removed ${course.subject} ${course.number} from your courses.`);
+  const handleCatalogCourseRemove = async (course: CourseCatalog) => {
+    if (!user) {
+      toast.error('Please log in to remove courses');
+      return;
+    }
+
+    const courseCode = `${course.subject} ${course.number}`;
+    
+    // Check if course exists in backend and delete it
+    const existingCourse = courses?.find(c => c.code === courseCode);
+    if (existingCourse) {
+      try {
+        await deleteMutation.mutateAsync(existingCourse.id);
+        toast.success(`Removed ${courseCode} from your courses.`);
+      } catch (error: any) {
+        toast.error(error.response?.data?.detail || 'Failed to remove course from database');
+      }
+    } else {
+      // If not in backend, just remove from local state
+      setSelectedCatalogCourses(prev => 
+        prev.filter(c => !(c.subject === course.subject && c.number === course.number))
+      );
+      toast.success(`Removed ${courseCode} from your courses.`);
+    }
   };
 
   const handleCourseDetailOpen = async (course: CourseCatalog) => {
