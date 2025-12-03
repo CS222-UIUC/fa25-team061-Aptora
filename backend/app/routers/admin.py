@@ -12,8 +12,9 @@ from sqlalchemy import func
 
 from ..database import get_db
 from ..data_ingestion.discovery_ingestion import load_discovery_dataset, save_courses_to_db
-from ..models import CourseCatalog, CourseSection
+from ..models import CourseCatalog, CourseSection, User
 from ..scheduler import scheduler
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -151,3 +152,39 @@ async def stop_scheduler() -> Dict[str, str]:
 async def get_scheduler_status() -> Dict[str, Any]:
     """Get scheduler status and job information"""
     return scheduler.get_scheduler_status()
+
+@router.get("/pending-verifications")
+async def get_pending_verifications(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """
+    Get list of users with pending email verifications (development only).
+    This endpoint is useful when SMTP is not configured.
+    """
+    try:
+        unverified_users = db.query(User).filter(
+            User.is_verified == False,
+            User.is_active == True
+        ).all()
+        
+        verification_links = []
+        for user in unverified_users:
+            if user.verification_token:
+                verification_link = f"{settings.frontend_url}/verify-email?token={user.verification_token}"
+                verification_links.append({
+                    "email": user.email,
+                    "name": f"{user.first_name} {user.last_name}",
+                    "user_id": user.id,
+                    "verification_link": verification_link,
+                    "token_expires": user.verification_token_expires.isoformat() if user.verification_token_expires else None,
+                    "created_at": user.created_at.isoformat() if user.created_at else None
+                })
+        
+        return {
+            "smtp_configured": settings.smtp_server is not None,
+            "total_unverified": len(unverified_users),
+            "pending_verifications": verification_links,
+            "note": "If SMTP is not configured, verification links are logged to console when users register."
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting pending verifications: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get pending verifications")

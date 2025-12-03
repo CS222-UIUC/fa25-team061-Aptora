@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 class Settings(BaseSettings):
-    # Database
-    database_url: str
+    # Database - Default to SQLite for development
+    database_url: str = "sqlite:///./aptora.db"
     
     # Security
     secret_key: str = "your-secret-key-change-in-production"
