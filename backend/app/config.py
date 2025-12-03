@@ -1,10 +1,11 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+from pathlib import Path
 
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = "postgresql://user:password@localhost/study_scheduler"
+    database_url: str
     
     # Security
     secret_key: str = "your-secret-key-change-in-production"
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     
     class Config:
-        env_file = ".env"
+        env_file = Path(__file__).resolve().parent.parent / ".env"
 
 
 settings = Settings()
