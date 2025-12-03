@@ -1,7 +1,21 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, validator, field_validator, ConfigDict
 from typing import Optional, List
-from datetime import datetime
-from .models import DifficultyLevel, TaskType
+from datetime import datetime, timezone
+from .models import DifficultyLevel, TaskType, PriorityLevel
+
+
+def _validate_future_due_date(value: datetime) -> datetime:
+    if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+        raise ValueError("Due date must include timezone information")
+    if value <= datetime.now(timezone.utc):
+        raise ValueError("Due date must be in the future")
+    return value
+
+
+def _validate_optional_future_due_date(value: Optional[datetime]) -> Optional[datetime]:
+    if value is None:
+        return value
+    return _validate_future_due_date(value)
 
 
 # User schemas
@@ -66,10 +80,14 @@ class AssignmentBase(BaseModel):
     estimated_hours: float
     difficulty: DifficultyLevel
     task_type: TaskType
+    priority: PriorityLevel = PriorityLevel.MEDIUM
 
 
 class AssignmentCreate(AssignmentBase):
     course_id: int
+    @field_validator("due_date")
+    def validate_due_date(cls, value: datetime) -> datetime:
+        return _validate_future_due_date(value)
 
 
 class AssignmentUpdate(BaseModel):
@@ -80,6 +98,11 @@ class AssignmentUpdate(BaseModel):
     difficulty: Optional[DifficultyLevel] = None
     task_type: Optional[TaskType] = None
     is_completed: Optional[bool] = None
+    priority: Optional[PriorityLevel] = None
+
+    @field_validator("due_date")
+    def validate_due_date(cls, value: Optional[datetime]) -> Optional[datetime]:
+        return _validate_optional_future_due_date(value)
 
 
 class Assignment(AssignmentBase):
@@ -89,8 +112,7 @@ class Assignment(AssignmentBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Availability slot schemas

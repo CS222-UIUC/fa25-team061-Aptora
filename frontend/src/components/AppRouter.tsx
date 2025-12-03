@@ -7,6 +7,7 @@ import Assignments from '../pages/Assignments';
 import Availability from '../pages/Availability';
 import Schedule from '../pages/Schedule';
 import CalendarView from '../pages/CalendarView';
+import Notifications from '../pages/Notifications';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import About from '../pages/About';
@@ -26,6 +27,7 @@ const AppRouter: React.FC = () => {
           <Route path="/courses" element={<Courses />} />
           <Route path="/assignments" element={<Assignments />} />
           <Route path="/availability" element={<Availability />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/schedule" element={<Schedule />} />
           <Route path="/calendar" element={<CalendarView />} />
           <Route path="/login" element={<Login />} />

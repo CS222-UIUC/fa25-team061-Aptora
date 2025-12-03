@@ -61,9 +61,15 @@ async def register(
             last_name=user_data.last_name
         )
         
-        # Create verification token and send verification email
-        verification_token = AuthService.create_verification_token(db, user.id)
-        EmailService.send_verification_email(user_data.email, verification_token)
+        # Auto-verify in development (when SMTP is not configured)
+        if not settings.smtp_server:
+            user.is_verified = True
+            db.commit()
+            db.refresh(user)
+        else:
+            # Create verification token and send verification email
+            verification_token = AuthService.create_verification_token(db, user.id)
+            EmailService.send_verification_email(user_data.email, verification_token)
         
         return user
     except HTTPException:

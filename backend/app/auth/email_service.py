@@ -237,3 +237,50 @@ class EmailService:
         """
         
         return EmailService._send_email(email, subject, html_content, text_content)
+
+    @staticmethod
+    def send_study_session_reminder(email: str, session, lead_minutes: int) -> bool:
+        """
+        Send a reminder email for an upcoming study session.
+
+        Args:
+            email: Recipient email address
+            session: StudySession SQLAlchemy model instance
+            lead_minutes: How many minutes before the session this reminder is sent
+
+        Returns:
+            True if email sent successfully, False otherwise
+        """
+        assignment_title = getattr(session.assignment, "title", "Study Session")
+        starts_at = session.start_time.strftime("%B %d, %Y at %I:%M %p UTC")
+        subject = f"Reminder: {assignment_title} starting soon"
+
+        html_content = f"""
+        <html>
+            <body>
+                <h2>Upcoming Study Session Reminder</h2>
+                <p>This is a reminder that you have a study session coming up for:</p>
+                <p><strong>{assignment_title}</strong></p>
+                <p><strong>Start Time:</strong> {starts_at}</p>
+                <p>This reminder was sent {lead_minutes} minutes before the start time.</p>
+                <p>Good luck with your session!</p>
+                <br>
+                <p>Best regards,<br>The Aptora Team</p>
+            </body>
+        </html>
+        """
+
+        text_content = f"""
+        Upcoming Study Session Reminder
+
+        Assignment: {assignment_title}
+        Start Time: {starts_at}
+
+        This reminder was sent {lead_minutes} minutes before the start time.
+
+        Good luck with your session!
+
+        The Aptora Team
+        """
+
+        return EmailService._send_email(email, subject, html_content, text_content)
