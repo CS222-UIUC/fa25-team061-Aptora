@@ -8,8 +8,10 @@ import AppRouter from './components/AppRouter';
 import RequireAuth from './components/RequireAuth';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import { AuthProvider } from './contexts/AuthContext';
+import Dashboard from './pages/Dashboard';
 import About from './pages/About';
+import Navbar from './components/Navbar';
+import { AuthProvider } from './contexts/AuthContext';
 
 const theme = createTheme({
   palette: {
@@ -78,6 +80,52 @@ const App: React.FC = () => {
               <Route path="/app/about" element={<About />} />
               <Route path="/about" element={<Navigate to="/app/about" replace />} />
 
+              {/* Public routes - Dashboard and About */}
+              <Route
+                path="/dashboard"
+                element={
+                  <div style={{ minHeight: '100vh' }}>
+                    <Navbar />
+                    <div style={{ paddingTop: '16px' }}>
+                      <Dashboard />
+                    </div>
+                  </div>
+                }
+              />
+              <Route
+                path="/app/dashboard"
+                element={
+                  <div style={{ minHeight: '100vh' }}>
+                    <Navbar />
+                    <div style={{ paddingTop: '16px' }}>
+                      <Dashboard />
+                    </div>
+                  </div>
+                }
+              />
+              <Route
+                path="/about"
+                element={
+                  <div style={{ minHeight: '100vh' }}>
+                    <Navbar />
+                    <div style={{ paddingTop: '0' }}>
+                      <About />
+                    </div>
+                  </div>
+                }
+              />
+              <Route
+                path="/app/about"
+                element={
+                  <div style={{ minHeight: '100vh' }}>
+                    <Navbar />
+                    <div style={{ paddingTop: '0' }}>
+                      <About />
+                    </div>
+                  </div>
+                }
+              />
+
               {/* Protected app routes */}
               <Route
                 path="/app/*"
@@ -87,7 +135,6 @@ const App: React.FC = () => {
                   </RequireAuth>
                 }
               />
-              <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
               <Route path="/courses" element={<Navigate to="/app/courses" replace />} />
               <Route path="/assignments" element={<Navigate to="/app/assignments" replace />} />
               <Route path="/schedule" element={<Navigate to="/app/schedule" replace />} />

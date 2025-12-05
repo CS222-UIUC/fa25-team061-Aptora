@@ -20,6 +20,8 @@ import {
   CalendarToday,
   Home,
   Settings,
+  Notifications as NotificationsIcon,
+  Info,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,16 +47,20 @@ const Navbar: React.FC = () => {
   };
 
   const navigationItems = [
-    { path: '/app/dashboard', label: 'Dashboard', icon: <Dashboard /> },
+    { path: '/dashboard', label: 'Dashboard', icon: <Dashboard /> },
     { path: '/app/courses', label: 'Courses', icon: <School /> },
     { path: '/app/assignments', label: 'Assignments', icon: <Assignment /> },
     { path: '/app/schedule', label: 'Schedule', icon: <Schedule /> },
     { path: '/app/calendar', label: 'Calendar', icon: <CalendarToday /> },
     { path: '/app/availability', label: 'Availability', icon: <AccessTime /> },
+    { path: '/app/notifications', label: 'Notifications', icon: <NotificationsIcon /> },
     { path: '/app/admin', label: 'Admin', icon: <Settings /> },
+    { path: '/about', label: 'About', icon: <Info /> },
   ];
 
-  const isAboutPage = location.pathname === '/app/about';
+  const isAboutPage = location.pathname === '/app/about' || location.pathname === '/about';
+  const isDashboardPage = location.pathname === '/app/dashboard' || location.pathname === '/dashboard';
+  const shouldHideMenuIcon = isAboutPage || isDashboardPage;
 
   return (
     <AppBar 
@@ -66,15 +72,17 @@ const Navbar: React.FC = () => {
       }}
     >
       <Toolbar>
-        <IconButton
-          size="large"
-          edge="start"
-          color="inherit"
-          aria-label="menu"
-          sx={{ mr: 2 }}
-        >
-          <MenuIcon />
-        </IconButton>
+        {!shouldHideMenuIcon && (
+          <IconButton
+            size="large"
+            edge="start"
+            color="inherit"
+            aria-label="menu"
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
         <Typography 
           variant="h6" 
           component="div" 

@@ -17,6 +17,12 @@ class TaskType(enum.Enum):
     PROJECT = "project"
 
 
+class PriorityLevel(enum.Enum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -31,6 +37,9 @@ class User(Base):
     verification_token_expires = Column(DateTime(timezone=True), nullable=True)
     reset_token = Column(String, nullable=True)
     reset_token_expires = Column(DateTime(timezone=True), nullable=True)
+    # Notification settings
+    reminders_enabled = Column(Boolean, default=True)
+    reminder_lead_minutes = Column(Integer, default=30)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -68,6 +77,7 @@ class Assignment(Base):
     task_type = Column(Enum(TaskType), nullable=False)
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
     is_completed = Column(Boolean, default=False)
+    priority = Column(Enum(PriorityLevel), nullable=False, default=PriorityLevel.MEDIUM)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -107,6 +117,18 @@ class StudySession(Base):
     # Relationships
     user = relationship("User", back_populates="study_sessions")
     assignment = relationship("Assignment", back_populates="study_sessions")
+    reminder_log = relationship("StudySessionReminder", back_populates="study_session", uselist=False, cascade="all, delete-orphan")
+
+
+class StudySessionReminder(Base):
+    __tablename__ = "study_session_reminders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    study_session_id = Column(Integer, ForeignKey("study_sessions.id"), unique=True, nullable=False)
+    sent_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    study_session = relationship("StudySession", back_populates="reminder_log")
 
 
 # UIUC Course Catalog Models

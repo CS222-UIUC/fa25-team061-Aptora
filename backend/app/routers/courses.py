@@ -16,11 +16,19 @@ async def create_course(
     db: Session = Depends(get_db)
 ):
     """Create a new course."""
-    db_course = Course(**course.dict(), user_id=current_user.id)
-    db.add(db_course)
-    db.commit()
-    db.refresh(db_course)
-    return db_course
+    try:
+        course_dict = course.dict(exclude_unset=True)
+        db_course = Course(**course_dict, user_id=current_user.id)
+        db.add(db_course)
+        db.commit()
+        db.refresh(db_course)
+        return db_course
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create course: {str(e)}"
+        )
 
 
 @router.get("/", response_model=List[CourseSchema])

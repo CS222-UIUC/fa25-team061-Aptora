@@ -87,7 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         first_name: firstName,
         last_name: lastName,
       });
-      toast.success('Registration successful! Please login.');
+      // Auto-login after successful registration
+      await login(email, password);
+      toast.success('Registration successful!');
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Registration failed');
       throw error;
