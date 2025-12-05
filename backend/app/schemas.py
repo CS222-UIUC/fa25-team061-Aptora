@@ -256,3 +256,123 @@ class CourseCatalogSearch(BaseModel):
     title: Optional[str] = None
     semester: Optional[str] = None
     year: Optional[int] = None
+
+# ML and Scraping Schemas
+
+class ProfessorRatingBase(BaseModel):
+    professor_name: str
+    course_subject: str
+    course_number: str
+    overall_rating: Optional[float] = None
+    difficulty_rating: Optional[float] = None
+    would_take_again_percent: Optional[float] = None
+    source: str
+    source_url: Optional[str] = None
+    rating_count: Optional[int] = 0
+
+
+class ProfessorRatingCreate(ProfessorRatingBase):
+    pass
+
+
+class ProfessorRating(ProfessorRatingBase):
+    id: int
+    last_scraped_at: datetime
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class CourseInsightBase(BaseModel):
+    course_subject: str
+    course_number: str
+    avg_hours_per_week: Optional[float] = None
+    difficulty_score: Optional[float] = None
+    workload_rating: Optional[float] = None
+    assignment_frequency: Optional[str] = None
+    exam_count: Optional[int] = None
+    source: str
+    semester: Optional[str] = None
+    year: Optional[int] = None
+
+
+class CourseInsightCreate(CourseInsightBase):
+    pass
+
+
+class CourseInsight(CourseInsightBase):
+    id: int
+    last_scraped_at: datetime
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class StudyTimePredictionBase(BaseModel):
+    assignment_id: int
+    predicted_hours: float
+    confidence_score: Optional[float] = None
+    model_version: Optional[str] = None
+    features_used: Optional[dict] = None
+
+
+class StudyTimePredictionCreate(StudyTimePredictionBase):
+    pass
+
+
+class StudyTimePrediction(StudyTimePredictionBase):
+    id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class StudySessionFeedbackBase(BaseModel):
+    study_session_id: int
+    actual_duration_hours: Optional[float] = None
+    productivity_rating: Optional[float] = None
+    difficulty_rating: Optional[float] = None
+    was_sufficient: Optional[bool] = None
+    student_comments: Optional[str] = None
+
+
+class StudySessionFeedbackCreate(StudySessionFeedbackBase):
+    pass
+
+
+class StudySessionFeedback(StudySessionFeedbackBase):
+    id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class MLScheduleRequest(BaseModel):
+    start_date: datetime
+    end_date: datetime
+    use_ml: bool = True
+
+
+class MLPredictionResponse(BaseModel):
+    predicted_hours: float
+    confidence: float
+    confidence_interval: tuple[float, float]
+    feature_importance: dict
+
+
+class CourseInsightsResponse(BaseModel):
+    course_insights: List[CourseInsight]
+    professor_ratings: List[ProfessorRating]
+    avg_difficulty: Optional[float] = None
+    avg_hours_per_week: Optional[float] = None
+
+
+class MLScheduleResponse(BaseModel):
+    study_sessions: List['StudySession']
+    predictions: List[MLPredictionResponse]
+    total_hours_scheduled: float
+    ml_insights: dict

@@ -16,6 +16,9 @@ import {
   Chip,
   Alert,
   CircularProgress,
+  Switch,
+  FormControlLabel,
+  LinearProgress,
 } from '@mui/material';
 import {
   Schedule as ScheduleIcon,
@@ -33,6 +36,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
+import mlService from '../services/mlService';
 
 const schema = yup.object({
   start_date: yup.date().required('Start date is required'),
@@ -56,6 +60,8 @@ interface StudySession {
 const Schedule: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [useML, setUseML] = useState(true); // ML-powered scheduling toggle
+  const [mlPredictions, setMlPredictions] = useState<any[]>([]);
   const queryClient = useQueryClient();
 
   const {
@@ -81,16 +87,22 @@ const Schedule: React.FC = () => {
 
   const generateScheduleMutation = useMutation(
     async (data: FormData) => {
-      const response = await axios.post('/schedules/generate', {
+      const endpoint = useML ? '/schedules/generate-ml' : '/schedules/generate';
+      const response = await axios.post(endpoint, {
         start_date: data.start_date.toISOString(),
         end_date: data.end_date.toISOString(),
       });
       return response.data;
     },
     {
-      onSuccess: () => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries('study-sessions');
-        toast.success('Schedule generated successfully!');
+        if (useML && data.predictions) {
+          setMlPredictions(data.predictions);
+          toast.success(`ML Schedule generated! Avg confidence: ${(data.ml_insights.avg_confidence * 100).toFixed(0)}%`);
+        } else {
+          toast.success('Schedule generated successfully!');
+        }
         handleClose();
       },
       onError: (error: any) => {
@@ -300,6 +312,27 @@ const Schedule: React.FC = () => {
                 )}
               />
             </LocalizationProvider>
+            <Box sx={{ mt: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={useML}
+                    onChange={(e) => setUseML(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body1" fontWeight="bold">
+                      AI-Powered Optimization
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Use machine learning to analyze course difficulty from Reddit and optimize study times
+                    </Typography>
+                  </Box>
+                }
+              />
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleClose}>Cancel</Button>

@@ -150,7 +150,7 @@ class CourseSection(Base):
 
 class CourseCatalog(Base):
     __tablename__ = "course_catalog"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     subject = Column(String, nullable=False, index=True)
     number = Column(String, nullable=False, index=True)
@@ -161,6 +161,143 @@ class CourseCatalog(Base):
     year = Column(Integer, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     sections = relationship("CourseSection", back_populates="course_catalog", cascade="all, delete-orphan")
+
+
+# ML and Web Scraping Models
+
+class ScraperSource(enum.Enum):
+    RATEMYPROFESSOR = "ratemyprofessor"
+    REDDIT = "reddit"
+    COURSE_REVIEW = "course_review"
+    COURSE_FORUM = "course_forum"
+
+
+class JobStatus(enum.Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ProfessorRating(Base):
+    __tablename__ = "professor_ratings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    professor_name = Column(String, nullable=False, index=True)
+    course_subject = Column(String, nullable=False)
+    course_number = Column(String, nullable=False)
+    overall_rating = Column(Float)  # 1-5 scale
+    difficulty_rating = Column(Float)  # 1-5 scale
+    would_take_again_percent = Column(Float)  # 0-100
+    source = Column(Enum(ScraperSource), nullable=False)
+    source_url = Column(Text)
+    rating_count = Column(Integer, default=0)
+    last_scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class CourseInsight(Base):
+    __tablename__ = "course_insights"
+
+    id = Column(Integer, primary_key=True, index=True)
+    course_subject = Column(String, nullable=False, index=True)
+    course_number = Column(String, nullable=False, index=True)
+    avg_hours_per_week = Column(Float)
+    difficulty_score = Column(Float)  # 0-10 scale
+    workload_rating = Column(Float)  # 1-5 scale
+    assignment_frequency = Column(String)  # "weekly", "biweekly", etc.
+    exam_count = Column(Integer)
+    source = Column(Enum(ScraperSource), nullable=False)
+    semester = Column(String)
+    year = Column(Integer)
+    last_scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class AssignmentPattern(Base):
+    __tablename__ = "assignment_patterns"
+
+    id = Column(Integer, primary_key=True, index=True)
+    course_subject = Column(String, nullable=False)
+    course_number = Column(String, nullable=False)
+    assignment_type = Column(Enum(TaskType), nullable=False)
+    typical_duration_hours = Column(Float)
+    difficulty_avg = Column(Float)
+    student_feedback_count = Column(Integer, default=0)
+    source = Column(Text)
+    last_scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class MLModelType(enum.Enum):
+    TIME_ESTIMATOR = "time_estimator"
+    SCHEDULER_POLICY = "scheduler_policy"
+
+
+class MLModel(Base):
+    __tablename__ = "ml_models"
+
+    id = Column(Integer, primary_key=True, index=True)
+    model_type = Column(Enum(MLModelType), nullable=False)
+    version = Column(String, nullable=False)
+    model_path = Column(String, nullable=False)  # Filesystem path
+    metrics = Column(Text)  # JSON string of metrics
+    training_date = Column(DateTime(timezone=True), server_default=func.now())
+    is_active = Column(Boolean, default=True)
+    feature_importance = Column(Text)  # JSON string
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class StudyTimePrediction(Base):
+    __tablename__ = "study_time_predictions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=False)
+    predicted_hours = Column(Float, nullable=False)
+    confidence_score = Column(Float)  # 0-1 scale
+    model_version = Column(String)
+    features_used = Column(Text)  # JSON string
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    assignment = relationship("Assignment")
+
+
+class StudySessionFeedback(Base):
+    __tablename__ = "study_session_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    study_session_id = Column(Integer, ForeignKey("study_sessions.id"), nullable=False)
+    actual_duration_hours = Column(Float)
+    productivity_rating = Column(Float)  # 1-5 scale
+    difficulty_rating = Column(Float)  # 1-5 scale
+    was_sufficient = Column(Boolean)
+    student_comments = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    study_session = relationship("StudySession")
+
+
+class ScraperJob(Base):
+    __tablename__ = "scraper_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_type = Column(String, nullable=False)  # "professor", "course", "assignment"
+    target_identifier = Column(String, nullable=False)  # Course code, professor name
+    status = Column(Enum(JobStatus), default=JobStatus.PENDING)
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    error_message = Column(Text)
+    records_scraped = Column(Integer, default=0)
+    next_scheduled_run = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
