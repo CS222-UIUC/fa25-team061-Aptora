@@ -126,3 +126,71 @@ async def mark_session_complete(
     session.is_completed = True
     db.commit()
     return {"message": "Study session marked as completed"}
+
+
+# ML-Powered Endpoints
+
+@router.post("/generate-ml")
+async def generate_ml_schedule(
+    request: ScheduleRequest,
+    current_user: User = Depends(current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Generate ML-powered intelligent study schedule with predictions."""
+    from ..services.ml_service import MLScheduleService
+
+    try:
+        ml_service = MLScheduleService(db)
+        result = ml_service.generate_ml_schedule(
+            current_user.id,
+            request.start_date,
+            request.end_date
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"ML schedule generation failed: {str(e)}"
+        )
+
+
+@router.get("/insights/{course_code}")
+async def get_course_insights(
+    course_code: str,
+    db: Session = Depends(get_db)
+):
+    """Get aggregated insights for a course from web scraping."""
+    from ..services.ml_service import MLScheduleService
+
+    ml_service = MLScheduleService(db)
+    insights = ml_service.get_course_insights(course_code)
+    return insights
+
+
+@router.post("/feedback")
+async def submit_schedule_feedback(
+    session_id: int,
+    actual_hours: float,
+    productivity: float,
+    difficulty: float,
+    was_sufficient: bool,
+    comments: str = "",
+    current_user: User = Depends(current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Submit feedback on a study session for ML improvement."""
+    from ..models import StudySessionFeedback
+
+    feedback = StudySessionFeedback(
+        study_session_id=session_id,
+        actual_duration_hours=actual_hours,
+        productivity_rating=productivity,
+        difficulty_rating=difficulty,
+        was_sufficient=was_sufficient,
+        student_comments=comments
+    )
+
+    db.add(feedback)
+    db.commit()
+
+    return {"message": "Feedback submitted successfully", "id": feedback.id}
