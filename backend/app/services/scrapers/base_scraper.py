@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Dict, List
 import time
 import requests
+from requests.exceptions import HTTPError, Timeout, ConnectionError
 from datetime import datetime, timedelta
 import logging
 from functools import wraps
@@ -139,8 +140,42 @@ class BaseScraper(ABC):
         try:
             logger.info(f"Starting scrape for: {target}")
             data = self.scrape(target, **kwargs)
+            
+            # Validate that we got some data
+            if not data:
+                logger.warning(f"No data returned for {target}")
+                return None
+            
+            # Check if data is a valid dictionary
+            if not isinstance(data, dict):
+                logger.error(f"Invalid data type returned for {target}: {type(data)}")
+                return None
+            
             logger.info(f"Successfully scraped data for: {target}")
             return data
+        except KeyboardInterrupt:
+            logger.warning(f"Scraping interrupted for {target}")
+            raise
+        except HTTPError as e:
+            if e.response.status_code == 401:
+                logger.error(f"Authentication failed for {target}. Check API credentials.")
+            elif e.response.status_code == 403:
+                logger.error(f"Access forbidden for {target}. May be rate limited or blocked.")
+            elif e.response.status_code == 404:
+                logger.warning(f"Resource not found for {target}")
+            elif e.response.status_code == 429:
+                logger.warning(f"Rate limited for {target}. Waiting before retry...")
+                import time
+                time.sleep(5)  # Wait 5 seconds before returning
+            else:
+                logger.error(f"HTTP error {e.response.status_code} for {target}: {e}")
+            return None
+        except Timeout:
+            logger.error(f"Request timeout for {target}")
+            return None
+        except ConnectionError:
+            logger.error(f"Connection error for {target}. Check internet connection.")
+            return None
         except Exception as e:
             logger.error(f"Scraping failed for {target}: {e}", exc_info=True)
             return None

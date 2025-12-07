@@ -76,8 +76,18 @@ class FeatureEngineer:
 
         # Aggregate insights
         if insights:
-            avg_difficulty = np.mean([i.difficulty_score for i in insights if i.difficulty_score])
-            avg_hours = np.mean([i.avg_hours_per_week for i in insights if i.avg_hours_per_week])
+            difficulty_scores = [i.difficulty_score for i in insights if i.difficulty_score is not None]
+            hours_scores = [i.avg_hours_per_week for i in insights if i.avg_hours_per_week is not None]
+            
+            if difficulty_scores:
+                avg_difficulty = np.mean(difficulty_scores)
+            else:
+                avg_difficulty = 5.0  # Default middle value
+            
+            if hours_scores:
+                avg_hours = np.mean(hours_scores)
+            else:
+                avg_hours = 10.0  # Default
         else:
             avg_difficulty = 5.0  # Default middle value
             avg_hours = 10.0  # Default
