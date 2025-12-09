@@ -1,35 +1,64 @@
 import numpy as np
 from sklearn.cluster import KMeans
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from sqlalchemy.orm import Session
 from .models import Assignment, AvailabilitySlot, StudySession, User
 from .schemas import ScheduleRequest, ScheduleResponse, StudySession as StudySessionSchema
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ScheduleGenerator:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, use_rl: bool = False):
         self.db = db
+        self.use_rl = use_rl
+        self.rl_scheduler = None
+
+        # Try to load RL scheduler if requested
+        if use_rl:
+            try:
+                from .ml.rl.rl_scheduler import RLScheduler
+                self.rl_scheduler = RLScheduler(db)
+                if self.rl_scheduler.is_trained:
+                    logger.info("RL scheduler loaded and ready")
+                else:
+                    logger.warning("RL scheduler not trained, will use greedy fallback")
+                    self.use_rl = False
+            except Exception as e:
+                logger.error(f"Failed to load RL scheduler: {e}")
+                self.use_rl = False
     
     def generate_schedule(self, user_id: int, request: ScheduleRequest) -> ScheduleResponse:
         """
         Generate an optimized study schedule for a user within the given date range.
+        Uses RL-based optimization if available, otherwise falls back to greedy algorithm.
         """
         # Get user's assignments and availability
         assignments = self._get_user_assignments(user_id, request.start_date, request.end_date)
         availability_slots = self._get_user_availability(user_id)
-        
+
         if not assignments or not availability_slots:
             return ScheduleResponse(study_sessions=[], total_hours_scheduled=0, assignments_covered=[])
-        
-        # Calculate assignment priorities based on due date and difficulty
-        priorities = self._calculate_priorities(assignments)
-        
+
         # Generate time slots based on availability
         time_slots = self._generate_time_slots(availability_slots, request.start_date, request.end_date)
-        
-        # Optimize schedule using clustering algorithm
-        optimized_sessions = self._optimize_schedule(assignments, time_slots, priorities)
+
+        # Choose scheduling algorithm
+        if self.use_rl and self.rl_scheduler and self.rl_scheduler.is_trained:
+            logger.info("Using RL-based scheduler")
+            optimized_sessions = self.rl_scheduler.generate_schedule(
+                assignments=assignments,
+                time_slots=time_slots,
+                use_rl=True
+            )
+        else:
+            logger.info("Using greedy scheduler")
+            # Calculate assignment priorities based on due date and difficulty
+            priorities = self._calculate_priorities(assignments)
+            # Optimize schedule using greedy algorithm
+            optimized_sessions = self._optimize_schedule(assignments, time_slots, priorities)
         
         # Create study sessions
         study_sessions = []
