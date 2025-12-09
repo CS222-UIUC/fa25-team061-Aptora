@@ -96,6 +96,9 @@ class RedditScraper(BaseScraper):
                                 'score': comment.score
                             })
 
+            except praw.exceptions.PRAWException as e:
+                logger.warning(f"PRAW error scraping r/{subreddit_name}: {e}")
+                continue
             except Exception as e:
                 logger.warning(f"Failed to scrape r/{subreddit_name}: {e}")
                 continue

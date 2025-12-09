@@ -77,8 +77,9 @@ class ScheduleGenerator:
     
     def _get_user_assignments(self, user_id: int, start_date: datetime, end_date: datetime) -> List[Assignment]:
         """Get user's assignments within the date range."""
-        return self.db.query(Assignment).join(Assignment.course).filter(
-            Assignment.course.has(user_id=user_id),
+        from .models import Course
+        return self.db.query(Assignment).join(Course).filter(
+            Course.user_id == user_id,
             Assignment.due_date >= start_date,
             Assignment.due_date <= end_date,
             Assignment.is_completed == False
