@@ -58,7 +58,15 @@ class MLScheduleService:
             # 2. Enrich assignments with course insights
             enriched_assignments = []
             for assignment in assignments:
+                # Ensure course relationship is loaded
+                if not hasattr(assignment, 'course') or assignment.course is None:
+                    logger.warning(f"Assignment {assignment.id} has no course relationship")
+                    continue
+                
                 course_code = assignment.course.code
+                if not course_code:
+                    logger.warning(f"Assignment {assignment.id} has no course code")
+                    continue
 
                 # Try to get/scrape course insights
                 insights = self._get_or_scrape_course_insights(course_code)
@@ -249,8 +257,12 @@ class MLScheduleService:
     def _get_user_assignments(self, user_id: int, start_date: datetime, end_date: datetime) -> List[Assignment]:
         """Get user's incomplete assignments within date range"""
         from ..models import Course
+        from sqlalchemy.orm import joinedload
 
-        return self.db.query(Assignment).join(Course).filter(
+        # Eagerly load the course relationship to avoid lazy loading issues
+        return self.db.query(Assignment).options(
+            joinedload(Assignment.course)
+        ).join(Course).filter(
             Course.user_id == user_id,
             Assignment.due_date >= start_date,
             Assignment.due_date <= end_date,
