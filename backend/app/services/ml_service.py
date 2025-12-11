@@ -11,6 +11,7 @@ from ..schedule_generator import ScheduleGenerator
 from ..schemas import ScheduleRequest, ScheduleResponse
 from .scrapers.scraper_manager import ScraperManager
 from ..ml.models.time_estimator import StudyTimeEstimator
+from ..ml.models.xgboost_estimator import XGBoostTimeEstimator
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,26 @@ class MLScheduleService:
     Combines web scraping, ML predictions, and enhanced scheduling
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, use_xgboost: bool = True):
         self.db = db
         self.scraper_manager = ScraperManager(db)
-        self.time_estimator = StudyTimeEstimator(db)
+
+        # Try to use XGBoost model if available and requested
+        self.use_xgboost = use_xgboost
+        if use_xgboost:
+            try:
+                self.time_estimator = XGBoostTimeEstimator(db)
+                if self.time_estimator.is_trained:
+                    logger.info(f"Using trained XGBoost model {self.time_estimator.model_version}")
+                else:
+                    logger.warning("XGBoost model not trained, using rule-based fallback")
+                    self.time_estimator = StudyTimeEstimator(db)
+            except Exception as e:
+                logger.error(f"Failed to load XGBoost model: {e}")
+                logger.info("Falling back to rule-based estimator")
+                self.time_estimator = StudyTimeEstimator(db)
+        else:
+            self.time_estimator = StudyTimeEstimator(db)
 
     def generate_ml_schedule(
         self,

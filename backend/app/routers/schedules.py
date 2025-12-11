@@ -6,7 +6,9 @@ from ..models import User, StudySession
 from ..schemas import ScheduleRequest, ScheduleResponse, StudySession as StudySessionSchema, StudySessionUpdate
 from ..auth import current_active_user
 from ..schedule_generator import ScheduleGenerator
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/schedules", tags=["schedules"])
 
 
@@ -285,3 +287,176 @@ async def submit_schedule_feedback(
     db.commit()
 
     return {"message": "Feedback submitted successfully", "id": feedback.id}
+
+
+# ML Model Training Endpoints
+
+@router.post("/ml/train")
+async def train_ml_model(
+    current_user: User = Depends(current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Train XGBoost model on historical feedback data.
+    Requires admin privileges in production.
+    """
+    from ..ml.training.model_trainer import ModelTrainer
+
+    try:
+        trainer = ModelTrainer(db)
+        results = trainer.train_model()
+
+        if not results['success']:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=results.get('error', 'Training failed')
+            )
+
+        return {
+            "message": "Model trained successfully",
+            "results": results
+        }
+
+    except Exception as e:
+        logger.error(f"Model training failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Model training failed: {str(e)}"
+        )
+
+
+@router.get("/ml/model-info")
+async def get_model_info(
+    db: Session = Depends(get_db)
+):
+    """Get information about the currently loaded ML model."""
+    from ..ml.models.xgboost_estimator import XGBoostTimeEstimator
+
+    try:
+        estimator = XGBoostTimeEstimator(db)
+
+        return {
+            "model_type": "xgboost" if estimator.is_trained else "rule-based",
+            "model_version": estimator.model_version,
+            "is_trained": estimator.is_trained,
+            "model_path": str(estimator.model_path)
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "model_type": "unknown"
+        }
+
+
+@router.get("/ml/evaluate")
+async def evaluate_model(
+    current_user: User = Depends(current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Evaluate XGBoost model performance against baseline."""
+    from ..ml.training.model_trainer import ModelTrainer
+
+    try:
+        trainer = ModelTrainer(db)
+        results = trainer.evaluate_against_baseline()
+
+        if 'error' in results:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=results['error']
+            )
+
+        return results
+
+    except Exception as e:
+        logger.error(f"Model evaluation failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Evaluation failed: {str(e)}"
+        )
+
+
+@router.get("/ml/training-data-stats")
+async def get_training_data_stats(
+    current_user: User = Depends(current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get statistics about available training data."""
+    from ..models import StudySessionFeedback, StudySession
+
+    total_feedback = db.query(StudySessionFeedback).count()
+
+    valid_feedback = db.query(StudySessionFeedback).join(
+        StudySession
+    ).filter(
+        StudySession.is_completed == True,
+        StudySessionFeedback.actual_duration_hours.isnot(None)
+    ).count()
+
+    return {
+        "total_feedback_entries": total_feedback,
+        "valid_training_samples": valid_feedback,
+        "ready_for_training": valid_feedback >= 20,
+        "min_samples_required": 20
+    }
+
+
+@router.post("/ml/retrain")
+async def retrain_model(
+    force: bool = False,
+    current_user: User = Depends(current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Automatically retrain model if conditions are met.
+    Checks if enough new feedback data is available and retrains accordingly.
+    """
+    from ..ml.training.retraining_service import RetrainingService
+
+    try:
+        retraining_service = RetrainingService(
+            db,
+            min_new_samples=50,  # Retrain after 50 new samples
+            min_improvement_pct=5.0  # Accept model if not worse than 5%
+        )
+
+        results = retraining_service.retrain_model(force=force)
+
+        if not results['success']:
+            if results.get('retraining_needed') is False:
+                # Not an error, just not needed yet
+                return {
+                    "message": "Retraining not needed",
+                    "details": results
+                }
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=results.get('error', 'Retraining failed')
+                )
+
+        return {
+            "message": f"Model {results['action']}",
+            "results": results
+        }
+
+    except Exception as e:
+        logger.error(f"Retraining failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Retraining failed: {str(e)}"
+        )
+
+
+@router.get("/ml/retraining-status")
+async def get_retraining_status(
+    current_user: User = Depends(current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Check if model retraining is needed based on new feedback data."""
+    from ..ml.training.retraining_service import RetrainingService
+
+    retraining_service = RetrainingService(db)
+    status_info = retraining_service.check_retraining_needed()
+
+    return status_info
