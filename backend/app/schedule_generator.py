@@ -15,70 +15,90 @@ class ScheduleGenerator:
         """
         Generate an optimized study schedule for a user within the given date range.
         """
-        # Get user's assignments and availability
-        assignments = self._get_user_assignments(user_id, request.start_date, request.end_date)
-        availability_slots = self._get_user_availability(user_id)
+        import logging
+        logger = logging.getLogger(__name__)
         
-        if not assignments or not availability_slots:
-            return ScheduleResponse(study_sessions=[], total_hours_scheduled=0, assignments_covered=[])
-        
-        # Calculate assignment priorities based on due date and difficulty
-        priorities = self._calculate_priorities(assignments)
-        
-        # Generate time slots based on availability
-        time_slots = self._generate_time_slots(availability_slots, request.start_date, request.end_date)
-        
-        # Optimize schedule using clustering algorithm
-        optimized_sessions = self._optimize_schedule(assignments, time_slots, priorities)
-        
-        # Create study sessions
-        study_sessions = []
-        total_hours = 0
-        assignments_covered = set()
-        
-        for session_data in optimized_sessions:
-            session = StudySession(
-                start_time=session_data['start_time'],
-                end_time=session_data['end_time'],
-                user_id=user_id,
-                assignment_id=session_data['assignment_id'],
-                notes=session_data.get('notes', '')
-            )
-            self.db.add(session)
-            study_sessions.append(session)
+        try:
+            # Get user's assignments and availability
+            assignments = self._get_user_assignments(user_id, request.start_date, request.end_date)
+            availability_slots = self._get_user_availability(user_id)
             
-            duration = (session_data['end_time'] - session_data['start_time']).total_seconds() / 3600
-            total_hours += duration
-            assignments_covered.add(session_data['assignment_id'])
-        
-        self.db.commit()
-        
-        # Convert to response format
-        session_schemas = [
-            StudySessionSchema(
-                id=session.id,
-                start_time=session.start_time,
-                end_time=session.end_time,
-                user_id=session.user_id,
-                assignment_id=session.assignment_id,
-                is_completed=session.is_completed,
-                notes=session.notes,
-                created_at=session.created_at,
-                updated_at=session.updated_at
+            logger.info(f"Found {len(assignments)} assignments and {len(availability_slots)} availability slots for user {user_id}")
+            
+            if not assignments:
+                logger.warning(f"No assignments found for user {user_id} in date range")
+                return ScheduleResponse(study_sessions=[], total_hours_scheduled=0, assignments_covered=[])
+            
+            if not availability_slots:
+                logger.warning(f"No availability slots found for user {user_id}")
+                return ScheduleResponse(study_sessions=[], total_hours_scheduled=0, assignments_covered=[])
+            
+            # Calculate assignment priorities based on due date and difficulty
+            priorities = self._calculate_priorities(assignments)
+            
+            # Generate time slots based on availability
+            time_slots = self._generate_time_slots(availability_slots, request.start_date, request.end_date)
+            
+            # Optimize schedule using clustering algorithm
+            optimized_sessions = self._optimize_schedule(assignments, time_slots, priorities)
+            
+            # Create study sessions
+            study_sessions = []
+            total_hours = 0
+            assignments_covered = set()
+            
+            for session_data in optimized_sessions:
+                session = StudySession(
+                    start_time=session_data['start_time'],
+                    end_time=session_data['end_time'],
+                    user_id=user_id,
+                    assignment_id=session_data['assignment_id'],
+                    notes=session_data.get('notes', '')
+                )
+                self.db.add(session)
+                study_sessions.append(session)
+                
+                duration = (session_data['end_time'] - session_data['start_time']).total_seconds() / 3600
+                total_hours += duration
+                assignments_covered.add(session_data['assignment_id'])
+            
+            self.db.commit()
+            
+            # Convert to response format
+            session_schemas = [
+                StudySessionSchema(
+                    id=session.id,
+                    start_time=session.start_time,
+                    end_time=session.end_time,
+                    user_id=session.user_id,
+                    assignment_id=session.assignment_id,
+                    is_completed=session.is_completed,
+                    notes=session.notes,
+                    created_at=session.created_at,
+                    updated_at=session.updated_at
+                )
+                for session in study_sessions
+            ]
+            
+            return ScheduleResponse(
+                study_sessions=session_schemas,
+                total_hours_scheduled=total_hours,
+                assignments_covered=list(assignments_covered)
             )
-            for session in study_sessions
-        ]
-        
-        return ScheduleResponse(
-            study_sessions=session_schemas,
-            total_hours_scheduled=total_hours,
-            assignments_covered=list(assignments_covered)
-        )
+        except Exception as e:
+            logger.error(f"Error in schedule generation: {e}", exc_info=True)
+            raise
     
     def _get_user_assignments(self, user_id: int, start_date: datetime, end_date: datetime) -> List[Assignment]:
         """Get user's assignments within the date range."""
-        return self.db.query(Assignment).join(Assignment.course).filter(
-            Assignment.course.has(user_id=user_id),
+        from .models import Course
+        from sqlalchemy.orm import joinedload
+        
+        # Eagerly load the course relationship
+        return self.db.query(Assignment).options(
+            joinedload(Assignment.course)
+        ).join(Course).filter(
+            Course.user_id == user_id,
             Assignment.due_date >= start_date,
             Assignment.due_date <= end_date,
             Assignment.is_completed == False
@@ -113,9 +133,21 @@ class ScheduleGenerator:
     def _generate_time_slots(self, availability_slots: List[AvailabilitySlot], 
                            start_date: datetime, end_date: datetime) -> List[Dict]:
         """Generate available time slots based on user's availability."""
+        from datetime import time as dt_time
+        import logging
+        logger = logging.getLogger(__name__)
+        
         time_slots = []
+        # Handle timezone-aware datetimes by converting to naive if needed
+        if start_date.tzinfo is not None:
+            start_date = start_date.replace(tzinfo=None)
+        if end_date.tzinfo is not None:
+            end_date = end_date.replace(tzinfo=None)
+            
         current_date = start_date.date()
         end_date_only = end_date.date()
+        
+        logger.info(f"Generating time slots from {current_date} to {end_date_only}")
         
         while current_date <= end_date_only:
             day_of_week = current_date.weekday()  # 0=Monday, 6=Sunday
@@ -124,31 +156,36 @@ class ScheduleGenerator:
             day_availability = [slot for slot in availability_slots if slot.day_of_week == day_of_week]
             
             for slot in day_availability:
-                start_time_str = slot.start_time
-                end_time_str = slot.end_time
-                
-                # Parse time strings
-                start_hour, start_min = map(int, start_time_str.split(':'))
-                end_hour, end_min = map(int, end_time_str.split(':'))
-                
-                # Create datetime objects
-                slot_start = datetime.combine(current_date, datetime.min.time().replace(
-                    hour=start_hour, minute=start_min
-                ))
-                slot_end = datetime.combine(current_date, datetime.min.time().replace(
-                    hour=end_hour, minute=end_min
-                ))
-                
-                # Ensure slot is within the requested date range
-                if slot_start >= start_date and slot_end <= end_date:
-                    time_slots.append({
-                        'start_time': slot_start,
-                        'end_time': slot_end,
-                        'duration_hours': (slot_end - slot_start).total_seconds() / 3600
-                    })
+                try:
+                    start_time_str = slot.start_time
+                    end_time_str = slot.end_time
+                    
+                    if not start_time_str or not end_time_str:
+                        logger.warning(f"Invalid time slot: missing start or end time")
+                        continue
+                    
+                    # Parse time strings
+                    start_hour, start_min = map(int, start_time_str.split(':'))
+                    end_hour, end_min = map(int, end_time_str.split(':'))
+                    
+                    # Create datetime objects (naive, matching start_date/end_date)
+                    slot_start = datetime.combine(current_date, dt_time(hour=start_hour, minute=start_min))
+                    slot_end = datetime.combine(current_date, dt_time(hour=end_hour, minute=end_min))
+                    
+                    # Ensure slot is within the requested date range
+                    if slot_start >= start_date and slot_end <= end_date:
+                        time_slots.append({
+                            'start_time': slot_start,
+                            'end_time': slot_end,
+                            'duration_hours': (slot_end - slot_start).total_seconds() / 3600
+                        })
+                except (ValueError, AttributeError) as e:
+                    logger.warning(f"Error parsing time slot: {e}")
+                    continue
             
             current_date += timedelta(days=1)
         
+        logger.info(f"Generated {len(time_slots)} time slots")
         return time_slots
     
     def _optimize_schedule(self, assignments: List[Assignment], 

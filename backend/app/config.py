@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     smtp_username: Optional[str] = None
     smtp_password: Optional[str] = None
     
+    # Reddit API settings (for web scraping)
+    reddit_client_id: Optional[str] = None
+    reddit_client_secret: Optional[str] = None
+    reddit_user_agent: str = "Aptora Study Scheduler v1.0 (Educational)"
+    
     # Frontend URL
     frontend_url: str = "http://localhost:3000"
     

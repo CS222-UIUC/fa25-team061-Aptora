@@ -58,7 +58,15 @@ class MLScheduleService:
             # 2. Enrich assignments with course insights
             enriched_assignments = []
             for assignment in assignments:
+                # Ensure course relationship is loaded
+                if not hasattr(assignment, 'course') or assignment.course is None:
+                    logger.warning(f"Assignment {assignment.id} has no course relationship")
+                    continue
+                
                 course_code = assignment.course.code
+                if not course_code:
+                    logger.warning(f"Assignment {assignment.id} has no course code")
+                    continue
 
                 # Try to get/scrape course insights
                 insights = self._get_or_scrape_course_insights(course_code)
@@ -105,20 +113,31 @@ class MLScheduleService:
             )
 
             # 5. Compile response
+            # Convert StudySessionSchema objects to dictionaries
+            study_sessions_list = []
+            for session in schedule_result.study_sessions:
+                # Pydantic models have model_dump() in v2 or dict() in v1
+                if hasattr(session, 'model_dump'):
+                    study_sessions_list.append(session.model_dump())
+                elif hasattr(session, 'dict'):
+                    study_sessions_list.append(session.dict())
+                else:
+                    # Fallback: manual conversion
+                    study_sessions_list.append({
+                        'id': getattr(session, 'id', None),
+                        'start_time': getattr(session, 'start_time', None),
+                        'end_time': getattr(session, 'end_time', None),
+                        'assignment_id': getattr(session, 'assignment_id', None),
+                        'is_completed': getattr(session, 'is_completed', False),
+                        'notes': getattr(session, 'notes', None),
+                        'user_id': getattr(session, 'user_id', None),
+                    })
+            
             return {
-                'study_sessions': [
-                    {
-                        'id': session.id,
-                        'start_time': session.start_time,
-                        'end_time': session.end_time,
-                        'assignment_id': session.assignment_id,
-                        'is_completed': session.is_completed,
-                        'notes': session.notes
-                    }
-                    for session in schedule_result.study_sessions
-                ],
+                'study_sessions': study_sessions_list,
                 'predictions': predictions,
                 'total_hours_scheduled': schedule_result.total_hours_scheduled,
+                'assignments_covered': schedule_result.assignments_covered,
                 'ml_insights': {
                     'avg_confidence': sum(p['confidence'] for p in predictions) / len(predictions) if predictions else 0,
                     'assignments_analyzed': len(predictions),
@@ -129,17 +148,47 @@ class MLScheduleService:
         except Exception as e:
             logger.error(f"ML schedule generation failed: {e}", exc_info=True)
             # Fallback to basic scheduling
-            generator = ScheduleGenerator(self.db)
-            schedule_result = generator.generate_schedule(
-                user_id,
-                ScheduleRequest(start_date=start_date, end_date=end_date)
-            )
-            return {
-                'study_sessions': schedule_result.study_sessions,
-                'predictions': [],
-                'total_hours_scheduled': schedule_result.total_hours_scheduled,
-                'ml_insights': {'error': str(e), 'fallback': True}
-            }
+            try:
+                generator = ScheduleGenerator(self.db)
+                schedule_result = generator.generate_schedule(
+                    user_id,
+                    ScheduleRequest(start_date=start_date, end_date=end_date)
+                )
+                # Convert to dict format
+                study_sessions_list = []
+                for session in schedule_result.study_sessions:
+                    if hasattr(session, 'model_dump'):
+                        study_sessions_list.append(session.model_dump())
+                    elif hasattr(session, 'dict'):
+                        study_sessions_list.append(session.dict())
+                    else:
+                        study_sessions_list.append({
+                            'id': getattr(session, 'id', None),
+                            'start_time': getattr(session, 'start_time', None),
+                            'end_time': getattr(session, 'end_time', None),
+                            'assignment_id': getattr(session, 'assignment_id', None),
+                            'is_completed': getattr(session, 'is_completed', False),
+                            'notes': getattr(session, 'notes', None),
+                            'user_id': getattr(session, 'user_id', None),
+                        })
+                
+                return {
+                    'study_sessions': study_sessions_list,
+                    'predictions': [],
+                    'total_hours_scheduled': schedule_result.total_hours_scheduled,
+                    'assignments_covered': schedule_result.assignments_covered,
+                    'ml_insights': {'error': str(e), 'fallback': True}
+                }
+            except Exception as fallback_error:
+                logger.error(f"Fallback schedule generation also failed: {fallback_error}", exc_info=True)
+                # Return empty schedule if everything fails
+                return {
+                    'study_sessions': [],
+                    'predictions': [],
+                    'total_hours_scheduled': 0,
+                    'assignments_covered': [],
+                    'ml_insights': {'error': str(e), 'fallback_error': str(fallback_error)}
+                }
 
     def get_course_insights(self, course_code: str) -> Dict:
         """
@@ -208,8 +257,12 @@ class MLScheduleService:
     def _get_user_assignments(self, user_id: int, start_date: datetime, end_date: datetime) -> List[Assignment]:
         """Get user's incomplete assignments within date range"""
         from ..models import Course
+        from sqlalchemy.orm import joinedload
 
-        return self.db.query(Assignment).join(Assignment.course).filter(
+        # Eagerly load the course relationship to avoid lazy loading issues
+        return self.db.query(Assignment).options(
+            joinedload(Assignment.course)
+        ).join(Course).filter(
             Course.user_id == user_id,
             Assignment.due_date >= start_date,
             Assignment.due_date <= end_date,

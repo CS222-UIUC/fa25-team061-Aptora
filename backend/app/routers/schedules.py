@@ -17,9 +17,62 @@ async def generate_schedule(
     db: Session = Depends(get_db)
 ):
     """Generate a personalized study schedule."""
-    generator = ScheduleGenerator(db)
-    schedule = generator.generate_schedule(current_user.id, request)
-    return schedule
+    import logging
+    from ..models import Assignment, AvailabilitySlot, Course
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Normalize datetimes (remove timezone if present for comparison)
+        start_date = request.start_date
+        end_date = request.end_date
+        if start_date.tzinfo is not None:
+            start_date = start_date.replace(tzinfo=None)
+        if end_date.tzinfo is not None:
+            end_date = end_date.replace(tzinfo=None)
+        
+        logger.info(f"Generating schedule for user {current_user.id} from {start_date} to {end_date}")
+        
+        # Check if user has assignments
+        assignments_count = db.query(Assignment).join(Course).filter(
+            Course.user_id == current_user.id,
+            Assignment.due_date >= start_date,
+            Assignment.due_date <= end_date,
+            Assignment.is_completed == False
+        ).count()
+        
+        # Check if user has availability slots
+        availability_count = db.query(AvailabilitySlot).filter(
+            AvailabilitySlot.user_id == current_user.id
+        ).count()
+        
+        if assignments_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No assignments found in the selected date range. Please create assignments first."
+            )
+        
+        if availability_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No availability slots found. Please set your availability in the Availability page first."
+            )
+        
+        # Create a new request with normalized dates
+        from ..schemas import ScheduleRequest
+        normalized_request = ScheduleRequest(start_date=start_date, end_date=end_date)
+        
+        generator = ScheduleGenerator(db)
+        schedule = generator.generate_schedule(current_user.id, normalized_request)
+        logger.info(f"Successfully generated schedule with {len(schedule.study_sessions)} sessions")
+        return schedule
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating schedule: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate schedule: {str(e)}"
+        )
 
 
 @router.get("/sessions", response_model=List[StudySessionSchema])
@@ -138,16 +191,54 @@ async def generate_ml_schedule(
 ):
     """Generate ML-powered intelligent study schedule with predictions."""
     from ..services.ml_service import MLScheduleService
+    from ..models import Assignment, AvailabilitySlot, Course
+    import logging
+    logger = logging.getLogger(__name__)
 
     try:
+        # Normalize datetimes (remove timezone if present for comparison)
+        start_date = request.start_date
+        end_date = request.end_date
+        if start_date.tzinfo is not None:
+            start_date = start_date.replace(tzinfo=None)
+        if end_date.tzinfo is not None:
+            end_date = end_date.replace(tzinfo=None)
+        
+        # Check prerequisites
+        assignments_count = db.query(Assignment).join(Course).filter(
+            Course.user_id == current_user.id,
+            Assignment.due_date >= start_date,
+            Assignment.due_date <= end_date,
+            Assignment.is_completed == False
+        ).count()
+        
+        availability_count = db.query(AvailabilitySlot).filter(
+            AvailabilitySlot.user_id == current_user.id
+        ).count()
+        
+        if assignments_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No assignments found in the selected date range. Please create assignments first."
+            )
+        
+        if availability_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No availability slots found. Please set your availability in the Availability page first."
+            )
+        
         ml_service = MLScheduleService(db)
         result = ml_service.generate_ml_schedule(
             current_user.id,
-            request.start_date,
-            request.end_date
+            start_date,
+            end_date
         )
         return result
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"ML schedule generation failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"ML schedule generation failed: {str(e)}"
