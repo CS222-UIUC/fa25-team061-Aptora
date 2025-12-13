@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { 
   CalendarToday, 
@@ -8,32 +8,162 @@ import {
   ArrowUpward,
   ArrowDownward
 } from '@mui/icons-material';
+import { useQuery } from 'react-query';
+import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
+import dayjs from 'dayjs';
+
+interface ProgressData {
+  assignments: {
+    total: number;
+    completed: number;
+    percent: number;
+  };
+  study_sessions: {
+    total: number;
+    completed: number;
+    percent: number;
+  };
+}
+
+interface StudySession {
+  id: number;
+  start_time: string;
+  end_time: string;
+  assignment_id: number;
+  is_completed: boolean;
+  notes?: string;
+}
+
+interface Assignment {
+  id: number;
+  title: string;
+  due_date: string;
+  is_completed: boolean;
+  estimated_hours: number;
+}
 
 const Dashboard: React.FC = () => {
-  // Mock data for statistics
-  const stats = {
-    upcomingSessions: 4,
-    completedSessions: 12,
-    tasksDue: 3,
-    productivityScore: 78,
-  };
+  const { user } = useAuth();
 
-  // Mock data for productivity over time (last 7 days)
-  const productivityData = [
-    { date: 'Mon', productivity: 65 },
-    { date: 'Tue', productivity: 72 },
-    { date: 'Wed', productivity: 68 },
-    { date: 'Thu', productivity: 80 },
-    { date: 'Fri', productivity: 75 },
-    { date: 'Sat', productivity: 70 },
-    { date: 'Sun', productivity: 78 },
-  ];
+  // Fetch progress statistics
+  const { data: progressData, isLoading: progressLoading } = useQuery<ProgressData>(
+    'progress',
+    async () => {
+      const response = await axios.get('/progress/');
+      return response.data;
+    },
+    {
+      enabled: !!user,
+      refetchOnWindowFocus: true,
+    }
+  );
 
-  // Mock data for task completion breakdown
-  const taskCompletionData = [
-    { name: 'Completed', value: 12 },
-    { name: 'Pending', value: 6 },
-  ];
+  // Fetch study sessions
+  const { data: studySessions, isLoading: sessionsLoading } = useQuery<StudySession[]>(
+    'study-sessions',
+    async () => {
+      const response = await axios.get('/schedules/sessions');
+      return response.data;
+    },
+    {
+      enabled: !!user,
+      refetchOnWindowFocus: true,
+    }
+  );
+
+  // Fetch assignments
+  const { data: assignments, isLoading: assignmentsLoading } = useQuery<Assignment[]>(
+    'assignments',
+    async () => {
+      const response = await axios.get('/assignments/');
+      return response.data;
+    },
+    {
+      enabled: !!user,
+      refetchOnWindowFocus: true,
+    }
+  );
+
+  // Calculate statistics from real data
+  const stats = useMemo(() => {
+    const now = new Date();
+    const endOfWeek = new Date(now);
+    endOfWeek.setDate(now.getDate() + (7 - now.getDay())); // End of current week (Sunday)
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    // Upcoming sessions (not completed, start_time in the future)
+    const upcomingSessions = studySessions?.filter(session => {
+      const startTime = new Date(session.start_time);
+      return !session.is_completed && startTime > now;
+    }).length || 0;
+
+    // Completed sessions
+    const completedSessions = progressData?.study_sessions.completed || 0;
+
+    // Tasks due this week
+    const tasksDueThisWeek = assignments?.filter(assignment => {
+      if (assignment.is_completed) return false;
+      const dueDate = new Date(assignment.due_date);
+      return dueDate >= now && dueDate <= endOfWeek;
+    }).length || 0;
+
+    // Calculate productivity score based on completion rates
+    const assignmentCompletionRate = progressData?.assignments.percent || 0;
+    const sessionCompletionRate = progressData?.study_sessions.percent || 0;
+    const productivityScore = Math.round((assignmentCompletionRate + sessionCompletionRate) / 2);
+
+    return {
+      upcomingSessions,
+      completedSessions,
+      tasksDue: tasksDueThisWeek,
+      productivityScore: productivityScore || 0,
+    };
+  }, [studySessions, progressData, assignments]);
+
+  // Generate productivity data for last 7 days
+  const productivityData = useMemo(() => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const data = days.map((day, index) => {
+      const date = dayjs().subtract(6 - index, 'day');
+      const startOfDay = date.startOf('day').toDate();
+      const endOfDay = date.endOf('day').toDate();
+
+      // Count completed sessions for this day
+      const sessionsOnDay = studySessions?.filter(session => {
+        if (!session.is_completed) return false;
+        const sessionDate = new Date(session.start_time);
+        return sessionDate >= startOfDay && sessionDate <= endOfDay;
+      }).length || 0;
+
+      // Calculate productivity (sessions completed / total sessions scheduled for that day)
+      const totalSessionsOnDay = studySessions?.filter(session => {
+        const sessionDate = new Date(session.start_time);
+        return sessionDate >= startOfDay && sessionDate <= endOfDay;
+      }).length || 0;
+
+      const productivity = totalSessionsOnDay > 0 
+        ? Math.round((sessionsOnDay / totalSessionsOnDay) * 100)
+        : 0;
+
+      return {
+        date: day,
+        productivity: productivity || 0,
+      };
+    });
+
+    return data;
+  }, [studySessions]);
+
+  // Task completion breakdown
+  const taskCompletionData = useMemo(() => {
+    const completed = progressData?.assignments.completed || 0;
+    const pending = (progressData?.assignments.total || 0) - completed;
+    return [
+      { name: 'Completed', value: completed },
+      { name: 'Pending', value: pending },
+    ];
+  }, [progressData]);
 
   const COLORS = ['#6366f1', '#ec4899'];
 
@@ -68,6 +198,73 @@ const Dashboard: React.FC = () => {
       color: 'white',
     },
   ];
+
+  const isLoading = progressLoading || sessionsLoading || assignmentsLoading;
+
+  // Generate weekly overview text
+  const weeklyOverview = useMemo(() => {
+    const completedCount = stats.completedSessions;
+    const upcomingCount = stats.upcomingSessions;
+    const tasksCount = stats.tasksDue;
+    const pendingTasks = (progressData?.assignments.total || 0) - (progressData?.assignments.completed || 0);
+    const score = stats.productivityScore;
+
+    let message = `This week has been `;
+    if (score >= 80) {
+      message += 'highly productive';
+    } else if (score >= 60) {
+      message += 'productive';
+    } else if (score >= 40) {
+      message += 'moderately productive';
+    } else {
+      message += 'a slow start';
+    }
+
+    message += ` with ${completedCount} completed study session${completedCount !== 1 ? 's' : ''}`;
+    if (upcomingCount > 0) {
+      message += ` and ${upcomingCount} upcoming session${upcomingCount !== 1 ? 's' : ''} scheduled`;
+    }
+    message += `. Your productivity score of ${score} indicates `;
+    
+    if (score >= 80) {
+      message += 'excellent performance. ';
+    } else if (score >= 60) {
+      message += 'consistent performance. ';
+    } else if (score >= 40) {
+      message += 'room for improvement. ';
+    } else {
+      message += 'you should focus on completing more tasks. ';
+    }
+
+    if (tasksCount > 0) {
+      message += `You have ${tasksCount} task${tasksCount !== 1 ? 's' : ''} due this week`;
+      if (pendingTasks > 0) {
+        message += `, with ${pendingTasks} task${pendingTasks !== 1 ? 's' : ''} still pending`;
+      }
+      message += '. ';
+    }
+
+    message += 'Keep up the great work and maintain your study momentum!';
+
+    return message;
+  }, [stats, progressData]);
+
+  if (isLoading) {
+    return (
+      <div style={{ 
+        minHeight: '100vh', 
+        background: '#f5f7fa',
+        padding: '16px 24px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ color: '#718096', fontSize: '18px' }}>Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ 
@@ -270,6 +467,7 @@ const Dashboard: React.FC = () => {
                   <YAxis 
                     stroke="#718096"
                     style={{ fontSize: '12px' }}
+                    domain={[0, 100]}
                   />
                   <Tooltip 
                     contentStyle={{
@@ -285,7 +483,7 @@ const Dashboard: React.FC = () => {
                     dataKey="productivity"
                     stroke="#6366f1"
                     strokeWidth={3}
-                    name="Productivity"
+                    name="Productivity %"
                     dot={{ fill: '#6366f1', r: 5 }}
                     activeDot={{ r: 7 }}
                   />
@@ -306,37 +504,41 @@ const Dashboard: React.FC = () => {
               Task Completion Breakdown
             </h2>
             <div style={{ width: '100%', height: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={taskCompletionData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) =>
-                      `${name}: ${(percent * 100).toFixed(0)}%`
-                    }
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {taskCompletionData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              {taskCompletionData[0].value === 0 && taskCompletionData[1].value === 0 ? (
+                <p style={{ color: '#718096', fontSize: '16px' }}>No tasks yet</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={taskCompletionData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name}: ${(percent * 100).toFixed(0)}%`
+                      }
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {taskCompletionData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         </div>
@@ -358,11 +560,7 @@ const Dashboard: React.FC = () => {
             fontSize: '16px',
             margin: 0
           }}>
-            This week has been productive with 12 completed study sessions and
-            4 upcoming sessions scheduled. Your productivity score of 78
-            indicates consistent performance. You have 3 tasks due this week,
-            with 6 tasks still pending. Keep up the great work and maintain your
-            study momentum!
+            {weeklyOverview}
           </p>
         </div>
       </div>
