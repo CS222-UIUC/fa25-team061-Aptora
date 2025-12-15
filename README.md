@@ -232,7 +232,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Team
 
-This project was developed as part of CS222 coursework by Team 061.
+This project was developed as part of CS222 coursework by Anisha (adasg), Sriya (sburra2), Aafreen (aafreen3), and Vibha (vdara). Aafreen & Anisha worked on the backend and developing the ML model for the optimized study schedule. Vibha & Sriya worked on the frontend. Vibha desgined the Dashboard, and Sriya worked on the registration/login page. They both worked on developing the landing page.
 
 ## Future Enhancements
 
